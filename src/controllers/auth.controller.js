@@ -8,6 +8,7 @@ export const login = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
+      maxAge: 2 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({
