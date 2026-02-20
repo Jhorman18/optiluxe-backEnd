@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model carrito {
+  idCarrito        Int                @id @default(autoincrement())
+  carFechaCreacion DateTime           @default(now())
+  carEstado        String
+  fkIdUsuario      Int
+  usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
+  carrito_producto carrito_producto[]
+  venta            venta[]
+}
+
+model carrito_producto {
+  idCarritoProducto Int      @id @default(autoincrement())
+  fkIdCarrito       Int
+  fkIdProducto      Int
+  cantidad          Int
+  carrito           carrito  @relation(fields: [fkIdCarrito], references: [idCarrito])
+  producto          producto @relation(fields: [fkIdProducto], references: [idProducto])
+}
+
+model cita {
+  idCita           Int                @id @default(autoincrement())
+  citFecha         DateTime
+  citMotivo        String
+  citEstado        String
+  citObservaciones String?
+  fkIdUsuario      Int
+  usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
+  historia_clinica historia_clinica[]
+  satisfaccion     satisfaccion[]
+}
+
+model historia_clinica {
+  idHistoriaClinica Int      @id @default(autoincrement())
+  hisFecha          DateTime @default(now())
+  hisDiagnostico    String
+  hisFormulaOptica  String
+  hisObservaciones  String?
+  fkIdCita          Int
+  cita              cita     @relation(fields: [fkIdCita], references: [idCita])
+}
+
+model log_acceso {
+  idLogAcceso Int      @id @default(autoincrement())
+  logAccion   String
+  logFecha    DateTime @default(now())
+  logIP       String
+  logRecurso  String
+  fkIdUsuario Int
+  usuario     usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
+}
+
+model notificacion {
+  idNotificacion     Int      @id @default(autoincrement())
+  notTitulo          String
+  notMensaje         String
+  notCanal           String
+  notEstado          String
+  notFechaProgramada DateTime
+  fkIdUsuario        Int
+  usuario            usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
+}
+
+model pregunta {
+  idPregunta             Int                      @id @default(autoincrement())
+  preTexto               String
+  preTipo                String
+  preCategoria           String
+  preActiva              Boolean                  @default(true)
+  respuesta_satisfaccion respuesta_satisfaccion[]
+}
+
+model producto {
+  idProducto       Int                @id @default(autoincrement())
+  proNombre        String
+  proDescripcion   String?
+  proCategoria     String
+  proPrecio        Decimal            @db.Decimal(10, 2)
+  proStock         Int
+  proEstado        String
+  carrito_producto carrito_producto[]
+}
+
+model respuesta_satisfaccion {
+  idRespuesta      Int          @id @default(autoincrement())
+  resValor         String
+  fkIdPregunta     Int
+  fkIdSatisfaccion Int
+  pregunta         pregunta     @relation(fields: [fkIdPregunta], references: [idPregunta])
+  satisfaccion     satisfaccion @relation(fields: [fkIdSatisfaccion], references: [idSatisfaccion])
+}
+
+model rol {
+  idRol          Int       @id @default(autoincrement())
+  rolNombre      String    @unique
+  rolDescripcion String?
+  usuario        usuario[]
+}
+
+model satisfaccion {
+  idSatisfaccion         Int                      @id @default(autoincrement())
+  satFecha               DateTime                 @default(now())
+  satTipo                String
+  fkIdVenta              Int?
+  fkIdCita               Int?
+  respuesta_satisfaccion respuesta_satisfaccion[]
+  cita                   cita?                    @relation(fields: [fkIdCita], references: [idCita])
+  venta                  venta?                   @relation(fields: [fkIdVenta], references: [idVenta])
+}
+
+model usuario {
+  idUsuario           Int                   @id @default(autoincrement())
+  usuNombre           String
+  usuApellido         String
+  usuDocumento        String                @unique
+  usuTelefono         String
+  usuCorreo           String                @unique
+  usuPassword         String
+  usuDireccion        String
+  usuEstado           String
+  fkIdRol             Int?
+  carrito             carrito[]
+  cita                cita[]
+  log_acceso          log_acceso[]
+  notificacion        notificacion[]
+  rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
+  webpush_suscripcion webpush_suscripcion[]
+}
+
+model venta {
+  idVenta       Int            @id @default(autoincrement())
+  venFecha      DateTime       @default(now())
+  venTotal      Decimal        @db.Decimal(10, 2)
+  venMetodoPago String
+  fkIdCarrito   Int
+  satisfaccion  satisfaccion[]
+  carrito       carrito        @relation(fields: [fkIdCarrito], references: [idCarrito])
+}
+
+model webpush_suscripcion {
+  idWebpushSuscripcion Int      @id @default(autoincrement())
+  webEndpoint          String
+  webP256dh            String
+  webAuth              String
+  webFechaRegistro     DateTime @default(now())
+  fkIdUsuario          Int
+  usuario              usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
+}
