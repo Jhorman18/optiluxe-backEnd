@@ -18,3 +18,7 @@ export const login = async (req, res, next) => {
     next(error);
   }
 };
+
+export const me = async (req, res) => {
+  return res.status(200).json({ usuario: req.usuario });
+};
