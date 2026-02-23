@@ -87,6 +87,7 @@ model producto {
   proPrecio        Decimal            @db.Decimal(10, 2)
   proStock         Int
   proEstado        String
+  proImagen        String?
   carrito_producto carrito_producto[]
 }
 
