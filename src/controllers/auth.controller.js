@@ -25,9 +25,6 @@ export const login = async (req, res, next) => {
   }
 };
 
-/* =========================
-   📝 REGISTER
-========================= */
 export const register = async (req, res, next) => {
   try {
     const solicitante = req.usuario || null;
@@ -47,6 +44,38 @@ export const register = async (req, res, next) => {
       message: "Usuario creado correctamente",
       usuario: data.usuario,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const me = async (req, res, next) => {
+  try {
+    const u = req.usuario;
+
+    return res.status(200).json({
+      usuario: {
+        id: u.idUsuario,
+        nombre: u.usuNombre,
+        apellido: u.usuApellido,
+        correo: u.usuCorreo,
+        rol: u.rol?.rolNombre,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({ message: "Sesión cerrada correctamente" });
   } catch (error) {
     next(error);
   }
