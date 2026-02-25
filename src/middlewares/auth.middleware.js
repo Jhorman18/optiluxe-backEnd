@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
+import prisma from "../config/prisma.js";
 import { HttpError } from "../utils/httpErrors.js";
 
-export function authMiddleware(req, res, next) {
+
+export async function authMiddleware(req, res, next) {
   const token = req.cookies?.token;
 
   if (!token) {
@@ -10,9 +12,28 @@ export function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.usuario = decoded;
+
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario: decoded.idUsuario },
+      include: {
+        rol: true,
+      },
+    });
+
+    if (!usuario) {
+      return next(new HttpError("Usuario no encontrado", 401));
+    }
+
+    if (usuario.usuEstado !== "ACTIVO") {
+      return next(new HttpError("Usuario inactivo", 403));
+    }
+
+
+    req.usuario = usuario;
+
     next();
   } catch (error) {
-    next(new HttpError("Token inválido o expirado", 401));
+    return next(new HttpError("Token inválido o expirado", 401));
   }
 }
