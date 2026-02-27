@@ -3,9 +3,7 @@ import {
   registerUsuarioService,
 } from "../services/auth.service.js";
 
-/* =========================
-   🔐 LOGIN
-========================= */
+
 export const login = async (req, res, next) => {
   try {
     const data = await loginUsuarioService(req.body);

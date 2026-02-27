@@ -3,9 +3,7 @@ import bcrypt from "bcrypt";
 import { HttpError } from "../utils/httpErrors.js";
 import prisma from "../config/prisma.js";
 
-/* ============================
-   🔹 LOGIN
-============================ */
+
 export async function loginUsuarioService(data) {
   const { correo, password } = data;
 
@@ -57,9 +55,7 @@ export async function loginUsuarioService(data) {
   };
 }
 
-/* ============================
-   🔹 REGISTER CONTROLADO
-============================ */
+
 export async function registerUsuarioService(data, solicitante = null) {
   const {
     usuNombre,
@@ -85,7 +81,7 @@ export async function registerUsuarioService(data, solicitante = null) {
     );
   }
 
-  // 🔎 Verificar duplicados
+
   const [correoExistente, documentoExistente] = await Promise.all([
     prisma.usuario.findUnique({ where: { usuCorreo } }),
     prisma.usuario.findUnique({ where: { usuDocumento } }),
@@ -99,14 +95,12 @@ export async function registerUsuarioService(data, solicitante = null) {
     throw new HttpError("El documento ya está registrado", 409);
   }
 
-  /* ===============================
-     🔐 CONTROL DE ROLES
-  =============================== */
+
 
   let rolFinal = "CLIENTE";
 
   if (rol && rol !== "CLIENTE") {
-    // Solo ADMIN puede crear ADMIN o EMPLEADO
+
     if (!solicitante || solicitante.rol?.rolNombre !== "ADMIN") {
       throw new HttpError(
         "No autorizado para crear este tipo de usuario",
@@ -142,7 +136,7 @@ export async function registerUsuarioService(data, solicitante = null) {
     include: { rol: true },
   });
 
-  // Solo generar token si es registro público
+
   let token = null;
 
   if (!solicitante) {
