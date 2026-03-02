@@ -15,7 +15,7 @@ model usuario {
   usuDocumento    String  @unique @db.VarChar(15)
   usuTelefono     String  @db.VarChar(10)          
   usuCorreo       String  @unique @db.VarChar(150)
-  usuPasswordHash String  @db.VarChar(60)           
+  usuPassword     String  @db.VarChar(60)           
   usuDireccion    String  @db.VarChar(200)
   usuEstado       String  @db.VarChar(20)
   fkIdRol         Int?
