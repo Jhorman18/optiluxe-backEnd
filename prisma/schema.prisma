@@ -14,7 +14,7 @@ model usuario {
   usuApellido     String  @db.VarChar(100)
   usuDocumento    String  @unique @db.VarChar(15)
   usuTelefono     String  @db.VarChar(10)          
-  usuCorreo       String  @unique @db.VarChar(150)
+  usuCorreo       String  @unique @db.VarChar(80)
   usuPassword     String  @db.VarChar(60)           
   usuDireccion    String  @db.VarChar(200)
   usuEstado       String  @db.VarChar(20)
