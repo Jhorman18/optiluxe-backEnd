@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 
 import { corsMiddleware } from "./src/middlewares/cors.middleware.js";
 import authRoutes from "./src/routes/auth.routes.js";
+import facturaRoutes from "./src/routes/factura.routes.js"; 
 
 const app = express();
 
@@ -15,12 +16,16 @@ app.use(corsMiddleware);
 app.use(morgan("dev"));
 
 
+
 app.use("/api/auth", authRoutes);
+app.use("/api/factura", facturaRoutes); 
+
 
 
 app.use((req, res) => {
   res.status(404).json({ message: "Ruta no encontrada" });
 });
+
 
 
 app.use((err, req, res, next) => {
