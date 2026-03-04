@@ -9,151 +9,138 @@ datasource db {
 }
 
 model usuario {
-  idUsuario       Int     @id @default(autoincrement())
-  usuNombre       String  @db.VarChar(100)
-  usuApellido     String  @db.VarChar(100)
-  usuDocumento    String  @unique @db.VarChar(15)
-  usuTelefono     String  @db.VarChar(10)          
-  usuCorreo       String  @unique @db.VarChar(80)
-  usuPassword     String  @db.VarChar(60)           
-  usuDireccion    String  @db.VarChar(200)
-  usuEstado       String  @db.VarChar(20)
-  fkIdRol         Int?
-
-  rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
+  idUsuario           Int                   @id @default(autoincrement())
+  usuNombre           String                @db.VarChar(100)
+  usuApellido         String                @db.VarChar(100)
+  usuDocumento        String                @unique @db.VarChar(15)
+  usuTelefono         String                @db.VarChar(10)
+  usuCorreo           String                @unique @db.VarChar(150)
+  usuDireccion        String                @db.VarChar(200)
+  usuEstado           String                @db.VarChar(20)
+  fkIdRol             Int?
+  usuPassword         String                @db.VarChar(60)
   carrito             carrito[]
   cita                cita[]
   log_acceso          log_acceso[]
   notificacion        notificacion[]
+  rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
   webpush_suscripcion webpush_suscripcion[]
 }
 
 model rol {
-  idRol          Int     @id @default(autoincrement())
-  rolNombre      String  @unique @db.VarChar(50)
-  rolDescripcion String? @db.VarChar(200)
-
+  idRol          Int       @id @default(autoincrement())
+  rolNombre      String    @unique @db.VarChar(50)
+  rolDescripcion String?   @db.VarChar(200)
   usuario        usuario[]
 }
 
 model carrito {
-  idCarrito        Int      @id @default(autoincrement())
-  carFechaCreacion DateTime @default(now())
-  carEstado        String   @db.VarChar(20)
+  idCarrito        Int                @id @default(autoincrement())
+  carFechaCreacion DateTime           @default(now())
+  carEstado        String             @db.VarChar(20)
   fkIdUsuario      Int
-
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   carrito_producto carrito_producto[]
   factura          factura[]
 }
 
 model carrito_producto {
-  idCarritoProducto Int @id @default(autoincrement())
+  idCarritoProducto Int      @id @default(autoincrement())
   fkIdCarrito       Int
   fkIdProducto      Int
   cantidad          Int
-
-  carrito  carrito  @relation(fields: [fkIdCarrito], references: [idCarrito])
-  producto producto @relation(fields: [fkIdProducto], references: [idProducto])
+  carrito           carrito  @relation(fields: [fkIdCarrito], references: [idCarrito])
+  producto          producto @relation(fields: [fkIdProducto], references: [idProducto])
 
   @@unique([fkIdCarrito, fkIdProducto])
 }
 
 model producto {
-  idProducto     Int     @id @default(autoincrement())
-  proNombre      String  @db.VarChar(150)
-  proDescripcion String? @db.Text
-  proCategoria   String  @db.VarChar(50)
-  proPrecio      Decimal @db.Decimal(10, 2)
-  proStock       Int
-  proEstado      String  @db.VarChar(20)
-  proImagen      String? @db.VarChar(255)
-
+  idProducto       Int                @id @default(autoincrement())
+  proNombre        String             @db.VarChar(150)
+  proDescripcion   String?
+  proCategoria     String             @db.VarChar(50)
+  proPrecio        Decimal            @db.Decimal(10, 2)
+  proStock         Int
+  proEstado        String             @db.VarChar(20)
+  proImagen        String?            @db.VarChar(255)
   carrito_producto carrito_producto[]
 }
 
 model factura {
-  idFactura      Int      @id @default(autoincrement())
-  facNumero      String   @unique @db.VarChar(50)
-  facFecha       DateTime @default(now())
-  facConcepto    String   @db.VarChar(200)
-  facCondiciones String?  @db.VarChar(300)
-  facSubtotal    Decimal  @db.Decimal(10, 2)
-  facIva         Decimal  @db.Decimal(10, 2)
-  facTotal       Decimal  @db.Decimal(10, 2)
+  idFactura      Int        @id @default(autoincrement())
+  facNumero      String     @unique @db.VarChar(50)
+  facFecha       DateTime   @default(now())
+  facConcepto    String     @db.VarChar(200)
+  facCondiciones String?    @db.VarChar(300)
+  facSubtotal    Decimal    @db.Decimal(10, 2)
+  facIva         Decimal    @db.Decimal(10, 2)
+  facTotal       Decimal    @db.Decimal(10, 2)
   fkIdCarrito    Int
-
-  carrito  carrito  @relation(fields: [fkIdCarrito], references: [idCarrito])
-  encuesta encuesta[]
+  encuesta       encuesta[]
+  carrito        carrito    @relation(fields: [fkIdCarrito], references: [idCarrito])
 }
 
 model cita {
-  idCita           Int      @id @default(autoincrement())
+  idCita           Int                @id @default(autoincrement())
   citFecha         DateTime
-  citMotivo        String   @db.VarChar(200)
-  citEstado        String   @db.VarChar(20)
-  citObservaciones String?  @db.VarChar(300)
+  citMotivo        String             @db.VarChar(200)
+  citEstado        String             @db.VarChar(20)
+  citObservaciones String?            @db.VarChar(300)
   fkIdUsuario      Int
-
-  usuario          usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
-  historia_clinica historia_clinica[]
+  usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   encuesta         encuesta[]
+  historia_clinica historia_clinica[]
 }
 
 model historia_clinica {
   idHistoriaClinica Int      @id @default(autoincrement())
   hisFecha          DateTime @default(now())
-  hisDiagnostico    String   @db.Text
-  hisFormulaOptica  String   @db.Text
-  hisObservaciones  String?  @db.Text
+  hisDiagnostico    String
+  hisFormulaOptica  String
+  hisObservaciones  String?
   fkIdCita          Int
-
-  cita cita @relation(fields: [fkIdCita], references: [idCita])
+  cita              cita     @relation(fields: [fkIdCita], references: [idCita])
 }
 
 model encuesta {
-  idEncuesta  Int      @id @default(autoincrement())
-  enFecha     DateTime @default(now())
-  enTipo      String   @db.VarChar(50)
-  fkIdFactura Int?
-  fkIdCita    Int?
-
-  factura factura? @relation(fields: [fkIdFactura], references: [idFactura])
-  cita    cita?    @relation(fields: [fkIdCita], references: [idCita])
-
+  idEncuesta         Int                  @id @default(autoincrement())
+  enFecha            DateTime             @default(now())
+  enTipo             String               @db.VarChar(50)
+  fkIdFactura        Int?
+  fkIdCita           Int?
+  cita               cita?                @relation(fields: [fkIdCita], references: [idCita])
+  factura            factura?             @relation(fields: [fkIdFactura], references: [idFactura])
   respuesta_encuesta respuesta_encuesta[]
 }
 
 model pregunta {
-  idPregunta   Int     @id @default(autoincrement())
-  preTexto     String  @db.VarChar(300)
-  preTipo      String  @db.VarChar(50)
-  preCategoria String  @db.VarChar(50)
-  preActiva    Boolean @default(true)
-
+  idPregunta         Int                  @id @default(autoincrement())
+  preTexto           String               @db.VarChar(300)
+  preTipo            String               @db.VarChar(50)
+  preCategoria       String               @db.VarChar(50)
+  preActiva          Boolean              @default(true)
   respuesta_encuesta respuesta_encuesta[]
 }
 
 model respuesta_encuesta {
-  idRespuesta  Int    @id @default(autoincrement())
-  resValor     String @db.VarChar(300)
+  idRespuesta  Int      @id @default(autoincrement())
+  resValor     String   @db.VarChar(300)
   fkIdPregunta Int
   fkIdEncuesta Int
-
-  pregunta pregunta @relation(fields: [fkIdPregunta], references: [idPregunta])
-  encuesta encuesta @relation(fields: [fkIdEncuesta], references: [idEncuesta])
+  encuesta     encuesta @relation(fields: [fkIdEncuesta], references: [idEncuesta])
+  pregunta     pregunta @relation(fields: [fkIdPregunta], references: [idPregunta])
 }
 
 model notificacion {
   idNotificacion     Int      @id @default(autoincrement())
   notTitulo          String   @db.VarChar(150)
-  notMensaje         String   @db.Text
+  notMensaje         String
   notCanal           String   @db.VarChar(30)
   notEstado          String   @db.VarChar(20)
   notFechaProgramada DateTime
   fkIdUsuario        Int
-
-  usuario usuario @relation(fields: [fkIdUsuario], references: [idUsuario])
+  usuario            usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
 
 model log_acceso {
@@ -163,8 +150,7 @@ model log_acceso {
   logIP       String   @db.VarChar(45)
   logRecurso  String   @db.VarChar(150)
   fkIdUsuario Int
-
-  usuario usuario @relation(fields: [fkIdUsuario], references: [idUsuario])
+  usuario     usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
 
 model webpush_suscripcion {
@@ -174,6 +160,5 @@ model webpush_suscripcion {
   webAuth              String   @db.VarChar(255)
   webFechaRegistro     DateTime @default(now())
   fkIdUsuario          Int
-
-  usuario usuario @relation(fields: [fkIdUsuario], references: [idUsuario])
+  usuario              usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
