@@ -160,27 +160,54 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
 
   const formatted = formatCarrito(carrito);
 
-  const factura = await prisma.factura.create({
-    data: {
-      facNumero: `FAC-${Date.now()}`,
-      facFecha: new Date(),
-      facConcepto: "Compra de productos ópticos - OptiLuxe",
-      facCondiciones:
-        metodoPago === "PSE"
-          ? "Pago electrónico PSE"
-          : "Pago en efectivo",
-      facSubtotal: formatted.subtotal,
-      facIva: formatted.iva,
-      facTotal: formatted.total,
-      fkIdCarrito: carrito.idCarrito,
-    },
+  // 2. Transacción: Validar stock, descontar y crear factura
+  console.log(`🛒 Iniciando proceso de pago para carrito ${carrito.idCarrito}...`);
+  const factura = await prisma.$transaction(async (tx) => {
+    // Validar y descontar stock de cada producto
+    for (const item of carrito.carrito_producto) {
+      console.log(`📦 Descontando ${item.cantidad} de "${item.producto.proNombre}" (ID: ${item.producto.idProducto})`);
+      if (item.producto.proStock < item.cantidad) {
+        throw new HttpError(
+          `Stock insuficiente para "${item.producto.proNombre}". Disponible: ${item.producto.proStock}`,
+          400
+        );
+      }
+
+      await tx.producto.update({
+        where: { idProducto: item.producto.idProducto },
+        data: {
+          proStock: { decrement: item.cantidad }
+        }
+      });
+    }
+
+    // Crear factura
+    const nuevaFactura = await tx.factura.create({
+      data: {
+        facNumero: `FAC-${Date.now()}`,
+        facFecha: new Date(),
+        facConcepto: "Compra de productos ópticos - OptiLuxe",
+        facCondiciones:
+          metodoPago === "PSE"
+            ? "Pago electrónico PSE"
+            : "Pago en efectivo",
+        facSubtotal: formatted.subtotal,
+        facIva: formatted.iva,
+        facTotal: formatted.total,
+        fkIdCarrito: carrito.idCarrito,
+      },
+    });
+
+    // Marcar carrito como completado
+    await tx.carrito.update({
+      where: { idCarrito: carrito.idCarrito },
+      data: { carEstado: "COMPLETADO" },
+    });
+
+    return nuevaFactura;
   });
 
-  await prisma.carrito.update({
-    where: { idCarrito: carrito.idCarrito },
-    data: { carEstado: "COMPLETADO" },
-  });
-
+  // 3. Envío de correo (fuera de la transacción por rendimiento)
   try {
     const itemsHtml = formatted.items
       .map(
@@ -226,9 +253,9 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
 
         <ul>
           ${formatted.items.map(
-            (item) =>
-              `<li>${item.producto.nombre} (x${item.cantidad})</li>`
-          ).join("")}
+      (item) =>
+        `<li>${item.producto.nombre} (x${item.cantidad})</li>`
+    ).join("")}
         </ul>
 
         <p style="font-size: 18px;">
@@ -250,7 +277,7 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
 
 </div>
 `;
-
+    console.log("Enviando correo a:", carrito.usuario.usuCorreo);
     await sendEmail({
       to: carrito.usuario.usuCorreo,
       subject: `Confirmación de compra - ${factura.facNumero}`,

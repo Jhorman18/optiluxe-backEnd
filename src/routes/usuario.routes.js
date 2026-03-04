@@ -1,0 +1,9 @@
+import { Router } from "express";
+import * as usuarioController from "../controllers/usuario.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+
+const router = Router();
+
+router.get("/estadisticas", authMiddleware, usuarioController.getEstadisticasPacientes);
+
+export default router;

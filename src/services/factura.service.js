@@ -1,7 +1,8 @@
 import prisma from "../config/prisma.js";
 import { HttpError } from "../utils/httpErrors.js";
 
-export async function crearFacturaService(data) {
+export async function crearFacturaService(data, tx = null) {
+  const db = tx || prisma;
   const {
     facNumero,
     facFecha,
@@ -27,7 +28,7 @@ export async function crearFacturaService(data) {
   }
 
 
-  const carritoExistente = await prisma.carrito.findUnique({
+  const carritoExistente = await db.carrito.findUnique({
     where: { idCarrito: Number(fkIdCarrito) },
   });
 
@@ -36,7 +37,7 @@ export async function crearFacturaService(data) {
   }
 
 
-  const facturaExistente = await prisma.factura.findFirst({
+  const facturaExistente = await db.factura.findFirst({
     where: { facNumero },
   });
 
@@ -57,7 +58,7 @@ export async function crearFacturaService(data) {
   }
 
 
-  const nuevaFactura = await prisma.factura.create({
+  const nuevaFactura = await db.factura.create({
     data: {
       facNumero,
       facFecha: new Date(facFecha),
@@ -74,4 +75,20 @@ export async function crearFacturaService(data) {
     message: "Factura creada correctamente",
     factura: nuevaFactura,
   };
+}
+
+export async function obtenerVentasMesService() {
+  const hoy = new Date();
+  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+
+  const aggregateFacturas = await prisma.factura.aggregate({
+    _sum: {
+      facTotal: true
+    },
+    where: {
+      facFecha: { gte: primerDiaMes }
+    }
+  });
+
+  return aggregateFacturas._sum.facTotal ? Number(aggregateFacturas._sum.facTotal) : 0;
 }
