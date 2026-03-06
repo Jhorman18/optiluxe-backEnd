@@ -8,3 +8,12 @@ export const getEstadisticasPacientes = async (req, res, next) => {
         next(error);
     }
 };
+
+export const getUsuarios = async (req, res, next) => {
+    try {
+        const usuarios = await usuarioService.listarPacientesService();
+        res.json(usuarios);
+    } catch (error) {
+        next(error);
+    }
+};

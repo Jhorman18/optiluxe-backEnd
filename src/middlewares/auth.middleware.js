@@ -37,3 +37,10 @@ export async function authMiddleware(req, res, next) {
     return next(new HttpError("Token inválido o expirado", 401));
   }
 }
+
+export function isAdmin(req, res, next) {
+  if (req.usuario && req.usuario.rol && req.usuario.rol.rolNombre === "ADMINISTRADOR") {
+    return next();
+  }
+  return next(new HttpError("No tienes permisos de administrador", 403));
+}

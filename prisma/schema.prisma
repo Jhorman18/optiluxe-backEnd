@@ -134,13 +134,16 @@ model respuesta_encuesta {
 
 model notificacion {
   idNotificacion     Int      @id @default(autoincrement())
-  notTitulo          String   @db.VarChar(150)
-  notMensaje         String
-  notCanal           String   @db.VarChar(30)
+  notTitulo          String   @db.VarChar(100)
+  notMensaje         String   @db.Text
+  notCanal           String   @db.VarChar(50) @default("Email")
   notEstado          String   @db.VarChar(20)
+  notLeida           Boolean  @default(false)
   notFechaProgramada DateTime
   fkIdUsuario        Int
   usuario            usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
+
+  @@index([notEstado, notFechaProgramada, notLeida])
 }
 
 model log_acceso {

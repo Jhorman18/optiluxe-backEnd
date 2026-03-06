@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { enviarConfirmacionCitaEmail } from "../services/email.service.js";
 
 export const registrarCita = async (req, res) => {
   try {
@@ -10,22 +11,18 @@ export const registrarCita = async (req, res) => {
       pago 
     } = req.body;
     
-    // En tu proyecto se usa idUsuario
     const fkIdUsuario = req.usuario.idUsuario; 
 
     if (!citFecha || !citMotivo) {
       return res.status(400).json({ message: "La fecha y el motivo son obligatorios." });
     }
 
-    // Iniciar Transacción en Prisma
     const resultado = await prisma.$transaction(async (tx) => {
         
-        // 1. Crear la Cita
         const nuevaCita = await tx.cita.create({
           data: {
             citFecha: new Date(citFecha),
             citMotivo,
-            // Lógica de estado según pago
             citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "Confirmada" : (citEstado || "Pendiente"),
             citObservaciones,
             fkIdUsuario,
@@ -35,10 +32,8 @@ export const registrarCita = async (req, res) => {
         let nuevaFactura = null;
         let nuevaEncuesta = null;
 
-        // 2. Si hay un pago, creamos Factura y usamos Encuesta como puente
         if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
             
-            // A. Crear un Carrito para la auditoría (Requerido por el esquema de Factura)
             const nuevoCarrito = await tx.carrito.create({
                 data: {
                     fkIdUsuario,
@@ -47,7 +42,6 @@ export const registrarCita = async (req, res) => {
                 }
             });
 
-            // B. Generar la Factura
             const countFacturas = await tx.factura.count();
             const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(countFacturas + 1).toString().padStart(5, '0')}`;
             
@@ -67,7 +61,6 @@ export const registrarCita = async (req, res) => {
                }
             });
 
-            // C. Crear la Encuesta para vincular Cita y Factura (El "puente")
             nuevaEncuesta = await tx.encuesta.create({
                 data: {
                     enFecha: new Date(),
@@ -80,6 +73,9 @@ export const registrarCita = async (req, res) => {
 
         return { cita: nuevaCita, factura: nuevaFactura, encuesta: nuevaEncuesta };
     });
+
+    // Enviar correo de confirmación (fire-and-forget, no bloquea la respuesta)
+    enviarConfirmacionCitaEmail(resultado.cita, req.usuario, resultado.factura);
 
     return res.status(201).json({ 
       message: "Cita y pago registrados con éxito", 
