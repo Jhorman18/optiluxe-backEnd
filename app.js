@@ -9,6 +9,7 @@ import productoRoutes from "./src/routes/producto.routes.js";
 import carritoRoutes from "./src/routes/carrito.routes.js";
 import citaRoutes from "./src/routes/cita.routes.js";
 import usuarioRoutes from "./src/routes/usuario.routes.js";
+import encuestaRoutes from "./src/routes/encuesta.routes.js";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/producto", productoRoutes);
 app.use("/api/carrito", carritoRoutes);
 app.use("/api/cita", citaRoutes);
 app.use("/api/usuario", usuarioRoutes);
+app.use("/api/encuesta", encuestaRoutes);
 
 
 
