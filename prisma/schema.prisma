@@ -87,6 +87,7 @@ model cita {
   citMotivo        String             @db.VarChar(200)
   citEstado        String             @db.VarChar(20)
   citObservaciones String?            @db.VarChar(300)
+  citDuracion      Int                @default(30)
   fkIdUsuario      Int
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   encuesta         encuesta[]
