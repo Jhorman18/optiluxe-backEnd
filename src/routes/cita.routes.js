@@ -1,21 +1,28 @@
 import { Router } from "express";
-import * as citaController from "../controllers/cita.controller.js";
+import {
+  getHorariosOcupados,
+  getProximasCitas,
+  getEstadisticasCitas,
+  registrarCita,
+  getMisCitas,
+  tieneCitaActiva,
+} from "../controllers/cita.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // Público: consultar disponibilidad
-router.get("/horarios-ocupados", citaController.getHorariosOcupados);
+router.get("/horarios-ocupados", getHorariosOcupados);
 
 // Autenticados: dashboard admin
-router.get("/proximas", authMiddleware, citaController.getProximasCitas);
-router.get("/estadisticas", authMiddleware, citaController.getEstadisticasCitas);
+router.get("/proximas", authMiddleware, getProximasCitas);
+router.get("/estadisticas", authMiddleware, getEstadisticasCitas);
 
 // Autenticados: panel del cliente
-router.get("/mis-citas", authMiddleware, citaController.getMisCitas);
-router.get("/tiene-activa", authMiddleware, citaController.tieneCitaActiva);
+router.get("/mis-citas", authMiddleware, getMisCitas);
+router.get("/tiene-activa", authMiddleware, tieneCitaActiva);
 
 // Autenticados: agendar cita
-router.post("/", authMiddleware, citaController.registrarCita);
+router.post("/", authMiddleware, registrarCita);
 
 export default router;

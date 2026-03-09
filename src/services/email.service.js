@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import path from "path";
 
 console.log("📨 Configurando servicio de correo...");
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
@@ -14,7 +15,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verificar conexión SMTP
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Error de conexión SMTP:", error);
@@ -22,6 +22,32 @@ transporter.verify((error, success) => {
     console.log("✅ Servidor SMTP listo para enviar correos");
   }
 });
+
+const logoPath = path.join(process.cwd(), "public", "Logo.png");
+
+const logoAttachment = {
+  filename: "Logo.png",
+  path: logoPath,
+  cid: "logoOptiLuxe",
+};
+
+const contactoHTML = `
+  <div style="margin-top: 30px; padding: 20px; background-color: #F4F8FD; border-radius: 6px; border: 1px solid #E0E8F0;">
+    <h3 style="margin: 0 0 15px 0; color: #333;">¿Necesitas ayuda? Contáctanos</h3>
+
+    <p style="margin: 5px 0;">📞 <strong>Teléfono:</strong> +57 1 234 5678</p>
+    <p style="margin: 5px 0;">📱 <strong>WhatsApp:</strong> +57 310 123 4567</p>
+
+    <p style="margin: 10px 0 5px 0;">✉️ <strong>Email:</strong></p>
+    <p style="margin: 2px 0 2px 15px;">contacto@optiluxe.com</p>
+    <p style="margin: 2px 0 2px 15px;">citas@optiluxe.com</p>
+
+    <p style="margin: 10px 0 5px 0;">🕐 <strong>Horario de Atención:</strong></p>
+    <p style="margin: 2px 0 2px 15px;">Lunes a Viernes: 9:00 AM - 7:00 PM</p>
+    <p style="margin: 2px 0 2px 15px;">Sábados: 9:00 AM - 3:00 PM</p>
+    <p style="margin: 2px 0 2px 15px;">Domingos y festivos: Cerrado</p>
+  </div>
+`;
 
 export const enviarFacturaEmail = async (factura) => {
   try {
@@ -76,6 +102,8 @@ export const enviarFacturaEmail = async (factura) => {
       <h2>Total: $${factura.facTotal}</h2>
 
       <p>Gracias por confiar en Optiluxe.</p>
+
+      ${contactoHTML}
     `;
 
     const info = await transporter.sendMail({
@@ -83,11 +111,140 @@ export const enviarFacturaEmail = async (factura) => {
       to: usuario.usuCorreo,
       subject: `Factura ${factura.facNumero} - Optiluxe`,
       html,
+      attachments: [logoAttachment],
     });
 
     console.log("✅ Correo enviado correctamente:", info.response);
 
   } catch (error) {
     console.error("❌ Error enviando correo:", error);
+  }
+};
+
+export const enviarConfirmacionCitaEmail = async (cita, usuario, factura = null) => {
+  try {
+    const fechaCita = new Date(cita.citFecha).toLocaleDateString("es-CO", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const horaCita = new Date(cita.citFecha).toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const pagoHTML = factura
+      ? `
+        <div style="margin-top: 20px; padding: 15px; background-color: #E8F5E9; border-left: 4px solid #4CAF50; border-radius: 4px;">
+          <h3 style="margin: 0 0 10px 0; color: #2E7D32;">Pago registrado</h3>
+          <p><strong>Factura:</strong> #${factura.facNumero}</p>
+          <p><strong>Concepto:</strong> ${factura.facConcepto}</p>
+          <p><strong>Método:</strong> ${factura.facCondiciones}</p>
+          <p style="font-size: 18px;"><strong>Total:</strong> $${Number(factura.facTotal).toLocaleString("es-CO")}</p>
+        </div>
+      `
+      : "";
+
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
+        <div style="background-color: #ffffff; padding: 30px; text-align: center;">
+          <img src="cid:logoOptiLuxe" alt="OptiLuxe Logo" style="max-width:160px;">
+        </div>
+
+        <div style="height: 4px; background-color: #D5E0F4;"></div>
+
+        <div style="padding: 30px; color: #333;">
+
+          <h2>Hola ${usuario.usuNombre},</h2>
+
+          <p>
+            ¡Tu cita ha sido registrada con éxito! A continuación encontrarás
+            los detalles de tu próxima visita a OptiLuxe.
+          </p>
+
+          <div style="margin-top: 25px; padding: 20px; background-color: #F4F8FD; border-left: 4px solid #D5E0F4; border-radius: 4px;">
+            <h3 style="margin: 0 0 15px 0;">Detalles de la cita</h3>
+
+            <p><strong>Fecha:</strong> ${fechaCita}</p>
+            <p><strong>Hora:</strong> ${horaCita}</p>
+            <p><strong>Motivo:</strong> ${cita.citMotivo}</p>
+            <p><strong>Estado:</strong> ${cita.citEstado}</p>
+            ${cita.citObservaciones ? `<p><strong>Observaciones:</strong> ${cita.citObservaciones}</p>` : ""}
+          </div>
+
+          ${pagoHTML}
+
+          ${contactoHTML}
+
+          <p style="margin-top: 40px; font-size: 14px; color: #777;">
+            © ${new Date().getFullYear()} OptiLuxe - Visión Clara
+          </p>
+
+        </div>
+      </div>
+    </div>
+    `;
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: usuario.usuCorreo,
+      subject: `Confirmación de Cita - OptiLuxe`,
+      html,
+      attachments: [logoAttachment],
+    });
+
+    console.log("✅ Correo de confirmación de cita enviado:", info.response);
+
+  } catch (error) {
+    console.error("❌ Error enviando correo de confirmación de cita:", error);
+  }
+};
+
+export const enviarNotificacionGeneralEmail = async (correo, titulo, mensaje, nombreUsuario) => {
+  try {
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
+        <div style="background-color: #ffffff; padding: 30px; text-align: center;">
+          <img src="cid:logoOptiLuxe" alt="OptiLuxe Logo" style="max-width:160px;">
+        </div>
+
+        <div style="height: 4px; background-color: #D5E0F4;"></div>
+
+        <div style="padding: 30px; color: #333;">
+
+          <h2>Hola ${nombreUsuario},</h2>
+
+          <div style="margin-top: 25px; padding: 20px; background-color: #F4F8FD; border-left: 4px solid #D5E0F4; border-radius: 4px;">
+            <h3 style="margin: 0 0 15px 0;">${titulo}</h3>
+            <p style="white-space: pre-wrap; line-height: 1.6;">${mensaje}</p>
+          </div>
+
+          ${contactoHTML}
+
+          <p style="margin-top: 40px; font-size: 14px; color: #777;">
+            © ${new Date().getFullYear()} OptiLuxe - Visión Clara
+          </p>
+
+        </div>
+      </div>
+    </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: correo,
+      subject: titulo,
+      html,
+      attachments: [logoAttachment],
+    });
+
+  } catch (error) {
+    console.error("❌ Error enviando correo de notificación general:", error);
   }
 };

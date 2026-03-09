@@ -267,6 +267,22 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
         Si tienes alguna pregunta, no dudes en contactarnos.
       </p>
 
+      <div style="margin-top: 20px; padding: 20px; background-color: #F4F8FD; border-radius: 6px; border: 1px solid #E0E8F0;">
+        <h3 style="margin: 0 0 15px 0; color: #333;">¿Necesitas ayuda? Contáctanos</h3>
+
+        <p style="margin: 5px 0;">📞 <strong>Teléfono:</strong> +57 310 234 5678</p>
+        <p style="margin: 5px 0;">📱 <strong>WhatsApp:</strong> +57 310 123 4567</p>
+
+        <p style="margin: 10px 0 5px 0;">✉️ <strong>Email:</strong></p>
+        <p style="margin: 2px 0 2px 15px;">contacto@optiluxe.com</p>
+        <p style="margin: 2px 0 2px 15px;">citas@optiluxe.com</p>
+
+        <p style="margin: 10px 0 5px 0;">🕐 <strong>Horario de Atención:</strong></p>
+        <p style="margin: 2px 0 2px 15px;">Lunes a Viernes: 9:00 AM - 7:00 PM</p>
+        <p style="margin: 2px 0 2px 15px;">Sábados: 9:00 AM - 3:00 PM</p>
+        <p style="margin: 2px 0 2px 15px;">Domingos y festivos: Cerrado</p>
+      </div>
+
       <p style="margin-top: 40px; font-size: 14px; color: #777;">
         © ${new Date().getFullYear()} OptiLuxe - Visión Clara
       </p>

@@ -4,6 +4,7 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+router.get("/", authMiddleware, usuarioController.getUsuarios);
 router.get("/estadisticas", authMiddleware, usuarioController.getEstadisticasPacientes);
 
 export default router;
