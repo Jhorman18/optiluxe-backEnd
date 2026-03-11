@@ -19,6 +19,8 @@ model usuario {
   usuEstado           String                @db.VarChar(20)
   fkIdRol             Int?
   usuPassword         String                @db.VarChar(60)
+  usuResetToken       String?               @db.VarChar(255)
+  usuResetTokenExpiry DateTime?
   carrito             carrito[]
   cita                cita[]
   log_acceso          log_acceso[]
@@ -77,8 +79,10 @@ model factura {
   facIva         Decimal    @db.Decimal(10, 2)
   facTotal       Decimal    @db.Decimal(10, 2)
   fkIdCarrito    Int
+  fkIdCita       Int?
   encuesta       encuesta[]
   carrito        carrito    @relation(fields: [fkIdCarrito], references: [idCarrito])
+  cita           cita?      @relation(fields: [fkIdCita], references: [idCita])
 }
 
 model cita {
@@ -91,6 +95,7 @@ model cita {
   fkIdUsuario      Int
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   encuesta         encuesta[]
+  factura          factura[]
   historia_clinica historia_clinica[]
 }
 

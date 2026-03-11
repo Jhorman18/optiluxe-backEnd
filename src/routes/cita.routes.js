@@ -6,6 +6,9 @@ import {
   registrarCita,
   getMisCitas,
   tieneCitaActiva,
+  getAllCitasAdmin,
+  actualizarEstadoCita,
+  reprogramarCita,
 } from "../controllers/cita.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
@@ -17,6 +20,11 @@ router.get("/horarios-ocupados", getHorariosOcupados);
 // Autenticados: dashboard admin
 router.get("/proximas", authMiddleware, getProximasCitas);
 router.get("/estadisticas", authMiddleware, getEstadisticasCitas);
+
+// Autenticados: panel admin — gestión completa de citas
+router.get("/admin/todas", authMiddleware, getAllCitasAdmin);
+router.patch("/:id/estado", authMiddleware, actualizarEstadoCita);
+router.patch("/:id/reprogramar", authMiddleware, reprogramarCita);
 
 // Autenticados: panel del cliente
 router.get("/mis-citas", authMiddleware, getMisCitas);

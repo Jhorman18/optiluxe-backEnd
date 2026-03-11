@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { enviarConfirmacionCitaEmail } from "../services/email.service.js";
 import * as citaService from "../services/cita.service.js";
+import { crearNotificacionAutomatica } from "../services/notificacion.service.js";
 
 // ─── Dashboard Admin ──────────────────────────────────────────────────────────
 
@@ -71,63 +72,75 @@ export const registrarCita = async (req, res) => {
 
     const resultado = await prisma.$transaction(async (tx) => {
 
-        const nuevaCita = await tx.cita.create({
+      const nuevaCita = await tx.cita.create({
+        data: {
+          citFecha: new Date(citFecha),
+          citMotivo,
+          citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "Confirmada" : (citEstado || "Pendiente"),
+          citObservaciones,
+          fkIdUsuario,
+        },
+      });
+
+      let nuevaFactura = null;
+      let nuevaEncuesta = null;
+
+      if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
+
+        const nuevoCarrito = await tx.carrito.create({
           data: {
-            citFecha: new Date(citFecha),
-            citMotivo,
-            citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "Confirmada" : (citEstado || "Pendiente"),
-            citObservaciones,
             fkIdUsuario,
-          },
+            carEstado: "Completado",
+            carFechaCreacion: new Date()
+          }
         });
 
-        let nuevaFactura = null;
-        let nuevaEncuesta = null;
+        const countFacturas = await tx.factura.count();
+        const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(countFacturas + 1).toString().padStart(5, '0')}`;
 
-        if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
+        const total = parseFloat(pago.totalAPagar);
+        const subtotal = total / 1.19;
+        const iva = total - subtotal;
 
-            const nuevoCarrito = await tx.carrito.create({
-                data: {
-                    fkIdUsuario,
-                    carEstado: "Completado",
-                    carFechaCreacion: new Date()
-                }
-            });
+        nuevaFactura = await tx.factura.create({
+          data: {
+            facNumero,
+            facConcepto: `Pago de servicio: ${citMotivo}`,
+            facCondiciones: `Método: ${pago.metodo}`,
+            facSubtotal: subtotal.toFixed(2),
+            facIva: iva.toFixed(2),
+            facTotal: total,
+            fkIdCarrito: nuevoCarrito.idCarrito,
+            fkIdCita: nuevaCita.idCita,
+          }
+        });
 
-            const countFacturas = await tx.factura.count();
-            const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(countFacturas + 1).toString().padStart(5, '0')}`;
+        nuevaEncuesta = await tx.encuesta.create({
+          data: {
+            enFecha: new Date(),
+            enTipo: "Servicio Cita",
+            fkIdCita: nuevaCita.idCita,
+            fkIdFactura: nuevaFactura.idFactura
+          }
+        });
+      }
 
-            const total = parseFloat(pago.totalAPagar);
-            const subtotal = total / 1.19;
-            const iva = total - subtotal;
-
-            nuevaFactura = await tx.factura.create({
-               data: {
-                 facNumero,
-                 facConcepto: `Pago de servicio: ${citMotivo}`,
-                 facCondiciones: `Método: ${pago.metodo}`,
-                 facSubtotal: subtotal.toFixed(2),
-                 facIva: iva.toFixed(2),
-                 facTotal: total,
-                 fkIdCarrito: nuevoCarrito.idCarrito
-               }
-            });
-
-            nuevaEncuesta = await tx.encuesta.create({
-                data: {
-                    enFecha: new Date(),
-                    enTipo: "Servicio Cita",
-                    fkIdCita: nuevaCita.idCita,
-                    fkIdFactura: nuevaFactura.idFactura
-                }
-            });
-        }
-
-        return { cita: nuevaCita, factura: nuevaFactura, encuesta: nuevaEncuesta };
+      return { cita: nuevaCita, factura: nuevaFactura, encuesta: nuevaEncuesta };
     });
 
-    // Enviar correo de confirmación (fire-and-forget, no bloquea la respuesta)
+    // Correo de confirmación
     enviarConfirmacionCitaEmail(resultado.cita, req.usuario, resultado.factura);
+
+    // Notificación interna automática de confirmación
+    const fechaCita = new Date(resultado.cita.citFecha).toLocaleString("es-CO", {
+      dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+    });
+    crearNotificacionAutomatica(
+      fkIdUsuario,
+      "Cita confirmada",
+      `Tu cita para el ${fechaCita} ha sido registrada exitosamente. Motivo: ${citMotivo}.`,
+      false // <-- false para NO enviar correo duplicado, solo DB (Campanita) y Push
+    ).catch(() => { });
 
     return res.status(201).json({
       message: "Cita y pago registrados con éxito",
@@ -181,6 +194,95 @@ export const tieneCitaActiva = async (req, res, next) => {
     const resultado = await citaService.tieneCitaActivaService(req.usuario.idUsuario);
     res.json(resultado);
   } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Panel Admin: gestión completa ────────────────────────────────────────────
+
+/**
+ * GET /api/cita/admin/todas?estado=PENDIENTE&fechaDesde=YYYY-MM-DD&fechaHasta=YYYY-MM-DD&busqueda=texto
+ * Requiere autenticación. Devuelve todas las citas con datos del paciente y factura.
+ */
+export const getAllCitasAdmin = async (req, res, next) => {
+  try {
+    const { estado, fechaDesde, fechaHasta, busqueda } = req.query;
+    const citas = await citaService.getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda });
+    res.json(citas);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/cita/:id/estado
+ * Requiere autenticación. Cambia el estado de una cita.
+ * Body: { estado: "CONFIRMADA" }
+ */
+export const actualizarEstadoCita = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado) {
+      return res.status(400).json({ message: "El campo 'estado' es obligatorio." });
+    }
+
+    const citaActualizada = await citaService.actualizarEstadoCitaService(id, estado);
+
+    // Notificación automática al usuario cuando el admin cambia el estado
+    const estadoNorm = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
+    if (["Cancelada", "Confirmada"].includes(estadoNorm)) {
+      const fecha = new Date(citaActualizada.citFecha).toLocaleString("es-CO", {
+        dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+      });
+      const titulo = estadoNorm === "Cancelada" ? "Cita cancelada" : "Cita confirmada";
+      const msg = estadoNorm === "Cancelada"
+        ? `Tu cita del ${fecha} ha sido cancelada. Comunícate con nosotros para reprogramarla.`
+        : `Tu cita del ${fecha} ha sido confirmada. ¡Te esperamos!`;
+      crearNotificacionAutomatica(citaActualizada.fkIdUsuario, titulo, msg).catch(() => { });
+    }
+
+    res.json({ message: "Estado actualizado correctamente.", data: citaActualizada });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/cita/:id/reprogramar
+ * Requiere autenticación. Cambia la fecha/hora de una cita.
+ * Body: { fecha: "2026-03-15T10:00:00.000Z" }
+ */
+export const reprogramarCita = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { fecha } = req.body;
+
+    if (!fecha) {
+      return res.status(400).json({ message: "El campo 'fecha' es obligatorio." });
+    }
+
+    const citaActualizada = await citaService.reprogramarCitaService(id, fecha);
+
+    // Notificación automática de reprogramación
+    const nuevaFecha = new Date(citaActualizada.citFecha).toLocaleString("es-CO", {
+      dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+    });
+    crearNotificacionAutomatica(
+      citaActualizada.fkIdUsuario,
+      "Cita reprogramada",
+      `Tu cita ha sido reprogramada para el ${nuevaFecha}. Motivo: ${citaActualizada.citMotivo}.`
+    ).catch(() => { });
+
+    res.json({ message: "Cita reprogramada correctamente.", data: citaActualizada });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 };

@@ -9,13 +9,28 @@ export async function contarPacientesActivosService() {
     });
 }
 
-export async function listarPacientesService() {
+export async function listarUsuariosService({ busqueda, rol } = {}) {
     return await prisma.usuario.findMany({
         where: {
-            rol: { rolNombre: "CLIENTE" }
+            ...(busqueda && {
+                OR: [
+                    { usuNombre: { contains: busqueda, mode: "insensitive" } },
+                    { usuApellido: { contains: busqueda, mode: "insensitive" } },
+                    { usuCorreo: { contains: busqueda, mode: "insensitive" } },
+                    { usuDocumento: { contains: busqueda, mode: "insensitive" } },
+                ],
+            }),
+            ...(rol && { rol: { rolNombre: rol } }),
         },
-        include: {
-            rol: true
-        }
+        include: { rol: true },
+        orderBy: { idUsuario: "desc" },
+    });
+}
+
+export async function toggleEstadoUsuarioService(id, estado) {
+    return await prisma.usuario.update({
+        where: { idUsuario: id },
+        data: { usuEstado: estado },
+        include: { rol: true },
     });
 }

@@ -1,7 +1,11 @@
 import {
   loginUsuarioService,
   registerUsuarioService,
+  forgotPasswordService,
+  resetPasswordService
 } from "../services/auth.service.js";
+
+import { enviarRecuperacionPasswordEmail } from "../services/email.service.js";
 
 
 export const login = async (req, res, next) => {
@@ -74,6 +78,32 @@ export const logout = async (req, res, next) => {
     });
 
     return res.status(200).json({ message: "Sesión cerrada correctamente" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { correo } = req.body;
+    const result = await forgotPasswordService(correo);
+
+    if (result.token) {
+      await enviarRecuperacionPasswordEmail(result.correo, result.nombre, result.token);
+    }
+
+    return res.status(200).json({ message: "Si el correo está registrado, se ha enviado un enlace." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, nuevaPassword } = req.body;
+    const result = await resetPasswordService(token, nuevaPassword);
+
+    return res.status(200).json(result);
   } catch (error) {
     next(error);
   }

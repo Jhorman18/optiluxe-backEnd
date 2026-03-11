@@ -11,6 +11,7 @@ import citaRoutes from "./src/routes/cita.routes.js";
 import usuarioRoutes from "./src/routes/usuario.routes.js";
 import encuestaRoutes from "./src/routes/encuesta.routes.js";
 import notificacionRoutes from "./src/routes/notificacion.routes.js";
+import webpushRoutes from "./src/routes/webpush.routes.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/usuario", usuarioRoutes);
 app.use("/api/encuesta", encuestaRoutes);
 app.use("/api/notificacion", notificacionRoutes);
 app.use("/api/notificaciones", notificacionRoutes);
+app.use("/api/webpush", webpushRoutes);
 
 
 

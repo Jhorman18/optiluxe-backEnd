@@ -6,5 +6,6 @@ const router = Router();
 
 router.get("/", authMiddleware, usuarioController.getUsuarios);
 router.get("/estadisticas", authMiddleware, usuarioController.getEstadisticasPacientes);
+router.patch("/:id/estado", authMiddleware, usuarioController.toggleEstadoUsuario);
 
 export default router;

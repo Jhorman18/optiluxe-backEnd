@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { HttpError } from "../utils/httpErrors.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { crearNotificacionAutomatica } from "./notificacion.service.js";
 
 function formatCarrito(carrito) {
   const items = carrito.carrito_producto.map((cp) => ({
@@ -302,6 +303,13 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
   } catch (error) {
     console.error("Error enviando correo:", error);
   }
+
+  // Notificación automática de compra exitosa
+  crearNotificacionAutomatica(
+    idUsuario,
+    "Compra exitosa",
+    `Tu pedido #${factura.facNumero} fue procesado por $${formatted.total.toLocaleString("es-CO")}. ¡Gracias por tu compra!`
+  ).catch(() => {});
 
   return {
     facNumero: factura.facNumero,

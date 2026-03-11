@@ -162,3 +162,70 @@ export async function registerUsuarioService(data, solicitante = null) {
     },
   };
 }
+
+import crypto from "crypto";
+
+export async function forgotPasswordService(correo) {
+  if (!correo) {
+    throw new HttpError("El correo es obligatorio", 400);
+  }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { usuCorreo: correo },
+  });
+
+  if (!usuario) {
+    // Return success to avoid email enumeration
+    return { message: "Si el correo está registrado, se ha enviado un enlace." };
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.usuario.update({
+    where: { idUsuario: usuario.idUsuario },
+    data: {
+      usuResetToken: tokenHash,
+      usuResetTokenExpiry: tokenExpiry,
+    },
+  });
+
+  return { 
+    token: resetToken, 
+    nombre: usuario.usuNombre,
+    correo: usuario.usuCorreo 
+  };
+}
+
+export async function resetPasswordService(token, nuevaPassword) {
+  if (!token || !nuevaPassword) {
+    throw new HttpError("Token y nueva contraseña son obligatorios", 400);
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const usuario = await prisma.usuario.findFirst({
+    where: {
+      usuResetToken: tokenHash,
+      usuResetTokenExpiry: { gt: new Date() },
+    },
+  });
+
+  if (!usuario) {
+    throw new HttpError("El token es inválido o ha expirado", 400);
+  }
+
+  const passwordHash = await bcrypt.hash(nuevaPassword, 10);
+
+  await prisma.usuario.update({
+    where: { idUsuario: usuario.idUsuario },
+    data: {
+      usuPassword: passwordHash,
+      usuResetToken: null,
+      usuResetTokenExpiry: null,
+    },
+  });
+
+  return { message: "Contraseña actualizada correctamente" };
+}
