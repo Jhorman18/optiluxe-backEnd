@@ -38,10 +38,10 @@ export const obtenerProducto = async (req, res, next) => {
 
 export const crearProducto = async (req, res, next) => {
   try {
-    const { nombre, categoria } = req.body;
+    const { nombre, idCategoria } = req.body;
 
     // Verificar si ya existe un producto con el mismo nombre y categoría
-    const existente = await buscarProductoPorNombreYCategoriaService(nombre, categoria);
+    const existente = await buscarProductoPorNombreYCategoriaService(nombre, idCategoria);
 
     if (existente) {
       return res.status(409).json({

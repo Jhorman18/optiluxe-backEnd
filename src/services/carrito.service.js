@@ -1,321 +1,199 @@
 import prisma from "../config/prisma.js";
+import { IVA } from "../config/negocio.js";
 import { HttpError } from "../utils/httpErrors.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { crearNotificacionAutomatica } from "./notificacion.service.js";
+import { confirmacionCompraHtml } from "../templates/emails/confirmacionCompra.template.js";
+
+// ─── Helpers internos ─────────────────────────────────────────────────────────
 
 function formatCarrito(carrito) {
-  const items = carrito.carrito_producto.map((cp) => ({
-    idCarritoProducto: cp.idCarritoProducto,
-    cantidad: cp.cantidad,
-    producto: {
-      id: cp.producto.idProducto,
-      nombre: cp.producto.proNombre,
-      categoria: cp.producto.proCategoria,
-      precio: Number(cp.producto.proPrecio),
-      imagen: cp.producto.proImagen,
-      stock: cp.producto.proStock,
-    },
-    subtotal: Number(cp.producto.proPrecio) * cp.cantidad,
-  }));
+    const items = carrito.carrito_producto.map((cp) => ({
+        idCarritoProducto: cp.idCarritoProducto,
+        cantidad: cp.cantidad,
+        producto: {
+            id:        cp.producto.idProducto,
+            nombre:    cp.producto.proNombre,
+            categoria: cp.producto.proCategoria,
+            precio:    Number(cp.producto.proPrecio),
+            imagen:    cp.producto.proImagen,
+            stock:     cp.producto.proStock,
+        },
+        subtotal: Number(cp.producto.proPrecio) * cp.cantidad,
+    }));
 
-  const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
-  const iva = subtotal * 0.19;
+    const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
+    const iva      = subtotal * IVA;
 
-  return {
-    idCarrito: carrito.idCarrito,
-    items,
-    subtotal,
-    iva,
-    total: subtotal + iva,
-    totalItems: items.reduce((acc, i) => acc + i.cantidad, 0),
-  };
+    return {
+        idCarrito:  carrito.idCarrito,
+        items,
+        subtotal,
+        iva,
+        total:      subtotal + iva,
+        totalItems: items.reduce((acc, i) => acc + i.cantidad, 0),
+    };
 }
 
 async function getOrCreateCarrito(idUsuario) {
-  let carrito = await prisma.carrito.findFirst({
-    where: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
-    include: {
-      carrito_producto: { include: { producto: true } },
-      usuario: true,
-    },
-  });
-
-  if (!carrito) {
-    carrito = await prisma.carrito.create({
-      data: { carEstado: "ACTIVO", fkIdUsuario: idUsuario },
-      include: {
-        carrito_producto: { include: { producto: true } },
-        usuario: true,
-      },
+    let carrito = await prisma.carrito.findFirst({
+        where: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
+        include: { carrito_producto: { include: { producto: true } }, usuario: true },
     });
-  }
 
-  return carrito;
+    if (!carrito) {
+        carrito = await prisma.carrito.create({
+            data: { carEstado: "ACTIVO", fkIdUsuario: idUsuario },
+            include: { carrito_producto: { include: { producto: true } }, usuario: true },
+        });
+    }
+
+    return carrito;
 }
 
+// ─── Servicios exportados ─────────────────────────────────────────────────────
+
 export async function getCarritoService(idUsuario) {
-  const carrito = await getOrCreateCarrito(idUsuario);
-  return formatCarrito(carrito);
+    const carrito = await getOrCreateCarrito(idUsuario);
+    return formatCarrito(carrito);
 }
 
 export async function agregarAlCarritoService(idUsuario, idProducto, cantidad = 1) {
-  const producto = await prisma.producto.findUnique({
-    where: { idProducto },
-  });
+    const producto = await prisma.producto.findUnique({ where: { idProducto } });
 
-  if (!producto || producto.proEstado !== "ACTIVO") {
-    throw new HttpError("Producto no disponible", 404);
-  }
+    if (!producto || producto.proEstado !== "ACTIVO") {
+        throw new HttpError("Producto no disponible", 404);
+    }
 
-  const carrito = await getOrCreateCarrito(idUsuario);
+    const carrito = await getOrCreateCarrito(idUsuario);
 
-  const itemExistente = await prisma.carrito_producto.findUnique({
-    where: {
-      fkIdCarrito_fkIdProducto: {
-        fkIdCarrito: carrito.idCarrito,
-        fkIdProducto: idProducto,
-      },
-    },
-  });
+    const itemExistente = await prisma.carrito_producto.findUnique({
+        where: { fkIdCarrito_fkIdProducto: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto } },
+    });
 
-  const cantidadFinal = (itemExistente?.cantidad ?? 0) + cantidad;
+    const cantidadFinal = (itemExistente?.cantidad ?? 0) + cantidad;
 
-  if (cantidadFinal > producto.proStock) {
-    throw new HttpError(`Solo hay ${producto.proStock} unidades disponibles`, 400);
-  }
+    if (cantidadFinal > producto.proStock) {
+        throw new HttpError(`Solo hay ${producto.proStock} unidades disponibles`, 400);
+    }
 
-  await prisma.carrito_producto.upsert({
-    where: {
-      fkIdCarrito_fkIdProducto: {
-        fkIdCarrito: carrito.idCarrito,
-        fkIdProducto: idProducto,
-      },
-    },
-    create: {
-      fkIdCarrito: carrito.idCarrito,
-      fkIdProducto: idProducto,
-      cantidad,
-    },
-    update: { cantidad: cantidadFinal },
-  });
+    await prisma.carrito_producto.upsert({
+        where: { fkIdCarrito_fkIdProducto: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto } },
+        create: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto, cantidad },
+        update: { cantidad: cantidadFinal },
+    });
 
-  return getCarritoService(idUsuario);
+    return getCarritoService(idUsuario);
 }
 
 export async function actualizarCantidadService(idCarritoProducto, idUsuario, cantidad) {
-  const item = await prisma.carrito_producto.findFirst({
-    where: {
-      idCarritoProducto,
-      carrito: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
-    },
-    include: { producto: true },
-  });
+    const item = await prisma.carrito_producto.findFirst({
+        where: { idCarritoProducto, carrito: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" } },
+        include: { producto: true },
+    });
 
-  if (!item) throw new HttpError("Item no encontrado en tu carrito", 404);
+    if (!item) throw new HttpError("Item no encontrado en tu carrito", 404);
 
-  if (cantidad <= 0) {
-    await prisma.carrito_producto.delete({ where: { idCarritoProducto } });
-  } else {
-    if (cantidad > item.producto.proStock) {
-      throw new HttpError(`Solo hay ${item.producto.proStock} unidades disponibles`, 400);
+    if (cantidad <= 0) {
+        await prisma.carrito_producto.delete({ where: { idCarritoProducto } });
+    } else {
+        if (cantidad > item.producto.proStock) {
+            throw new HttpError(`Solo hay ${item.producto.proStock} unidades disponibles`, 400);
+        }
+        await prisma.carrito_producto.update({ where: { idCarritoProducto }, data: { cantidad } });
     }
 
-    await prisma.carrito_producto.update({
-      where: { idCarritoProducto },
-      data: { cantidad },
-    });
-  }
-
-  return getCarritoService(idUsuario);
+    return getCarritoService(idUsuario);
 }
 
 export async function eliminarItemService(idCarritoProducto, idUsuario) {
-  const item = await prisma.carrito_producto.findFirst({
-    where: {
-      idCarritoProducto,
-      carrito: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
-    },
-  });
+    const item = await prisma.carrito_producto.findFirst({
+        where: { idCarritoProducto, carrito: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" } },
+    });
 
-  if (!item) throw new HttpError("Item no encontrado en tu carrito", 404);
+    if (!item) throw new HttpError("Item no encontrado en tu carrito", 404);
 
-  await prisma.carrito_producto.delete({
-    where: { idCarritoProducto },
-  });
-
-  return getCarritoService(idUsuario);
+    await prisma.carrito_producto.delete({ where: { idCarritoProducto } });
+    return getCarritoService(idUsuario);
 }
 
 export async function pagarCarritoService(idUsuario, metodoPago) {
-  const carrito = await prisma.carrito.findFirst({
-    where: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
-    include: {
-      carrito_producto: { include: { producto: true } },
-      usuario: true,
-    },
-  });
+    const carrito = await prisma.carrito.findFirst({
+        where: { fkIdUsuario: idUsuario, carEstado: "ACTIVO" },
+        include: { carrito_producto: { include: { producto: true } }, usuario: true },
+    });
 
-  if (!carrito) throw new HttpError("No tienes un carrito activo", 404);
-  if (carrito.carrito_producto.length === 0)
-    throw new HttpError("Tu carrito está vacío", 400);
+    if (!carrito)                            throw new HttpError("No tienes un carrito activo", 404);
+    if (carrito.carrito_producto.length === 0) throw new HttpError("Tu carrito está vacío", 400);
 
-  const formatted = formatCarrito(carrito);
+    const formatted = formatCarrito(carrito);
 
-  // 2. Transacción: Validar stock, descontar y crear factura
-  console.log(`🛒 Iniciando proceso de pago para carrito ${carrito.idCarrito}...`);
-  const factura = await prisma.$transaction(async (tx) => {
-    // Validar y descontar stock de cada producto
-    for (const item of carrito.carrito_producto) {
-      console.log(`📦 Descontando ${item.cantidad} de "${item.producto.proNombre}" (ID: ${item.producto.idProducto})`);
-      if (item.producto.proStock < item.cantidad) {
-        throw new HttpError(
-          `Stock insuficiente para "${item.producto.proNombre}". Disponible: ${item.producto.proStock}`,
-          400
-        );
-      }
-
-      await tx.producto.update({
-        where: { idProducto: item.producto.idProducto },
-        data: {
-          proStock: { decrement: item.cantidad }
+    const factura = await prisma.$transaction(async (tx) => {
+        for (const item of carrito.carrito_producto) {
+            if (item.producto.proStock < item.cantidad) {
+                throw new HttpError(
+                    `Stock insuficiente para "${item.producto.proNombre}". Disponible: ${item.producto.proStock}`,
+                    400
+                );
+            }
+            await tx.producto.update({
+                where: { idProducto: item.producto.idProducto },
+                data:  { proStock: { decrement: item.cantidad } },
+            });
         }
-      });
+
+        const nuevaFactura = await tx.factura.create({
+            data: {
+                facNumero:     `FAC-${Date.now()}`,
+                facFecha:      new Date(),
+                facConcepto:   "Compra de productos ópticos - OptiLuxe",
+                facCondiciones: metodoPago === "PSE" ? "Pago electrónico PSE" : "Pago en efectivo",
+                facSubtotal:   formatted.subtotal,
+                facIva:        formatted.iva,
+                facTotal:      formatted.total,
+                fkIdCarrito:   carrito.idCarrito,
+            },
+        });
+
+        await tx.carrito.update({
+            where: { idCarrito: carrito.idCarrito },
+            data:  { carEstado: "COMPLETADO" },
+        });
+
+        return nuevaFactura;
+    });
+
+    // Email de confirmación (fuera de la transacción)
+    try {
+        await sendEmail({
+            to:      carrito.usuario.usuCorreo,
+            subject: `Confirmación de compra - ${factura.facNumero}`,
+            html:    confirmacionCompraHtml({
+                nombreUsuario: carrito.usuario.usuNombre,
+                facNumero:     factura.facNumero,
+                items:         formatted.items.map((i) => ({
+                    nombre:   i.producto.nombre,
+                    cantidad: i.cantidad,
+                    subtotal: i.subtotal,
+                })),
+                total: formatted.total,
+            }),
+        });
+    } catch {
+        // El pago ya fue procesado; el fallo de email no revierte la compra
     }
 
-    // Crear factura
-    const nuevaFactura = await tx.factura.create({
-      data: {
-        facNumero: `FAC-${Date.now()}`,
-        facFecha: new Date(),
-        facConcepto: "Compra de productos ópticos - OptiLuxe",
-        facCondiciones:
-          metodoPago === "PSE"
-            ? "Pago electrónico PSE"
-            : "Pago en efectivo",
-        facSubtotal: formatted.subtotal,
-        facIva: formatted.iva,
-        facTotal: formatted.total,
-        fkIdCarrito: carrito.idCarrito,
-      },
-    });
+    crearNotificacionAutomatica(
+        idUsuario,
+        "Compra exitosa",
+        `Tu pedido #${factura.facNumero} fue procesado por $${formatted.total.toLocaleString("es-CO")}. ¡Gracias por tu compra!`
+    ).catch(() => {});
 
-    // Marcar carrito como completado
-    await tx.carrito.update({
-      where: { idCarrito: carrito.idCarrito },
-      data: { carEstado: "COMPLETADO" },
-    });
-
-    return nuevaFactura;
-  });
-
-  // 3. Envío de correo (fuera de la transacción por rendimiento)
-  try {
-    const itemsHtml = formatted.items
-      .map(
-        (item) => `
-        <tr>
-          <td>${item.producto.nombre}</td>
-          <td>${item.cantidad}</td>
-          <td>$${item.subtotal.toLocaleString()}</td>
-        </tr>
-      `
-      )
-      .join("");
-
-    const html = `
-<div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
-  
-  <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-    
-    <!-- Header -->
-    <div style="background-color: #ffffff; padding: 30px; text-align: center;">
-      <img src="cid:logoOptiLuxe" alt="OptiLuxe Logo" style="max-width:160px;">
-    </div>
-
-    <!-- Línea decorativa -->
-    <div style="height: 4px; background-color: #D5E0F4;"></div>
-
-    <!-- CONTENIDO -->
-    <div style="padding: 30px; color: #333;">
-      
-      <h2>Hola ${carrito.usuario.usuNombre},</h2>
-
-      <p>
-        ¡Muchas gracias por tu compra! Hemos recibido tu pedido con éxito 
-        y estamos trabajando en él para que puedas recoger tus productos.
-      </p>
-
-      <!-- Resumen -->
-      <div style="margin-top: 25px; padding: 20px; background-color: #F4F8FD; border-left: 4px solid #D5E0F4;">
-        <h3>Resumen de la orden</h3>
-
-        <p><strong>Pedido:</strong> #${factura.facNumero}</p>
-        <p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
-
-        <ul>
-          ${formatted.items.map(
-      (item) =>
-        `<li>${item.producto.nombre} (x${item.cantidad})</li>`
-    ).join("")}
-        </ul>
-
-        <p style="font-size: 18px;">
-          <strong>Total:</strong> $${formatted.total.toLocaleString()}
-        </p>
-      </div>
-
-      <p style="margin-top: 30px;">
-        Si tienes alguna pregunta, no dudes en contactarnos.
-      </p>
-
-      <div style="margin-top: 20px; padding: 20px; background-color: #F4F8FD; border-radius: 6px; border: 1px solid #E0E8F0;">
-        <h3 style="margin: 0 0 15px 0; color: #333;">¿Necesitas ayuda? Contáctanos</h3>
-
-        <p style="margin: 5px 0;">📞 <strong>Teléfono:</strong> +57 310 234 5678</p>
-        <p style="margin: 5px 0;">📱 <strong>WhatsApp:</strong> +57 310 123 4567</p>
-
-        <p style="margin: 10px 0 5px 0;">✉️ <strong>Email:</strong></p>
-        <p style="margin: 2px 0 2px 15px;">contacto@optiluxe.com</p>
-        <p style="margin: 2px 0 2px 15px;">citas@optiluxe.com</p>
-
-        <p style="margin: 10px 0 5px 0;">🕐 <strong>Horario de Atención:</strong></p>
-        <p style="margin: 2px 0 2px 15px;">Lunes a Viernes: 9:00 AM - 7:00 PM</p>
-        <p style="margin: 2px 0 2px 15px;">Sábados: 9:00 AM - 3:00 PM</p>
-        <p style="margin: 2px 0 2px 15px;">Domingos y festivos: Cerrado</p>
-      </div>
-
-      <p style="margin-top: 40px; font-size: 14px; color: #777;">
-        © ${new Date().getFullYear()} OptiLuxe - Visión Clara
-      </p>
-
-    </div>
-
-  </div>
-
-</div>
-`;
-    console.log("Enviando correo a:", carrito.usuario.usuCorreo);
-    await sendEmail({
-      to: carrito.usuario.usuCorreo,
-      subject: `Confirmación de compra - ${factura.facNumero}`,
-      html,
-    });
-  } catch (error) {
-    console.error("Error enviando correo:", error);
-  }
-
-  // Notificación automática de compra exitosa
-  crearNotificacionAutomatica(
-    idUsuario,
-    "Compra exitosa",
-    `Tu pedido #${factura.facNumero} fue procesado por $${formatted.total.toLocaleString("es-CO")}. ¡Gracias por tu compra!`
-  ).catch(() => {});
-
-  return {
-    facNumero: factura.facNumero,
-    metodoPago,
-    subtotal: formatted.subtotal,
-    iva: formatted.iva,
-    total: formatted.total,
-  };
+    return {
+        facNumero: factura.facNumero,
+        metodoPago,
+        subtotal:  formatted.subtotal,
+        iva:       formatted.iva,
+        total:     formatted.total,
+    };
 }

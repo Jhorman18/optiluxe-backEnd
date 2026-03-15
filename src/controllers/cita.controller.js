@@ -168,22 +168,6 @@ export const getMisCitas = async (req, res, next) => {
   }
 };
 
-export const obtenerMisCitas = async (req, res) => {
-  try {
-    const fkIdUsuario = req.usuario.idUsuario;
-
-    const citas = await prisma.cita.findMany({
-      where: { fkIdUsuario },
-      orderBy: { citFecha: 'asc' }
-    });
-
-    return res.status(200).json(citas);
-  } catch (error) {
-    console.error("Error al obtener citas:", error);
-    return res.status(500).json({ message: "Error interno al recuperar las citas." });
-  }
-};
-
 /**
  * GET /api/cita/tiene-activa
  * Requiere autenticacion. Indica si el usuario tiene una cita futura activa.

@@ -3,6 +3,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 
 import { corsMiddleware } from "./src/middlewares/cors.middleware.js";
+import { iniciarJobs } from "./src/jobs/index.js";
 import authRoutes from "./src/routes/auth.routes.js";
 import facturaRoutes from "./src/routes/factura.routes.js";
 import productoRoutes from "./src/routes/producto.routes.js";
@@ -12,6 +13,7 @@ import usuarioRoutes from "./src/routes/usuario.routes.js";
 import encuestaRoutes from "./src/routes/encuesta.routes.js";
 import notificacionRoutes from "./src/routes/notificacion.routes.js";
 import webpushRoutes from "./src/routes/webpush.routes.js";
+import categoriaRoutes from "./src/routes/categoria.routes.js";
 
 const app = express();
 
@@ -32,8 +34,8 @@ app.use("/api/cita", citaRoutes);
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/encuesta", encuestaRoutes);
 app.use("/api/notificacion", notificacionRoutes);
-app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/webpush", webpushRoutes);
+app.use("/api/categoria", categoriaRoutes);
 
 
 
@@ -55,5 +57,7 @@ app.use((err, req, res, next) => {
 
   res.status(status).json({ message });
 });
+
+iniciarJobs();
 
 export default app;

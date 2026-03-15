@@ -61,12 +61,20 @@ model producto {
   idProducto       Int                @id @default(autoincrement())
   proNombre        String             @db.VarChar(150)
   proDescripcion   String?
-  proCategoria     String             @db.VarChar(50)
+  fkIdCategoria    Int
   proPrecio        Decimal            @db.Decimal(10, 2)
   proStock         Int
   proEstado        String             @db.VarChar(20)
   proImagen        String?            @db.VarChar(255)
   carrito_producto carrito_producto[]
+  categoria        categoria          @relation(fields: [fkIdCategoria], references: [idCategoria])
+}
+
+model categoria {
+  idCategoria Int        @id @default(autoincrement())
+  catNombre   String     @unique @db.VarChar(100)
+  catEstado   String     @default("ACTIVO") @db.VarChar(20)
+  producto    producto[]
 }
 
 model factura {
