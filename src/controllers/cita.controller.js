@@ -133,7 +133,7 @@ export const registrarCita = async (req, res) => {
 
     // Notificación interna automática de confirmación
     const fechaCita = new Date(resultado.cita.citFecha).toLocaleString("es-CO", {
-      dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+      dateStyle: "full", timeStyle: "short", timeZone: "UTC",
     });
     crearNotificacionAutomatica(
       fkIdUsuario,
@@ -150,6 +150,49 @@ export const registrarCita = async (req, res) => {
   } catch (error) {
     console.error("Error al registrar cita:", error);
     return res.status(500).json({ message: "Error interno.", error: error.message });
+  }
+};
+
+// ─── Admin: crear cita para un paciente ───────────────────────────────────────
+
+/**
+ * POST /api/cita/admin
+ * Requiere autenticación admin. Crea una cita asignada a cualquier usuario.
+ * Body: { fkIdUsuario, citFecha, citMotivo, citDuracion, citEstado?, citObservaciones? }
+ */
+export const crearCitaAdmin = async (req, res, next) => {
+  try {
+    const { fkIdUsuario, citFecha, citMotivo, citDuracion, citEstado, citObservaciones } = req.body;
+
+    if (!fkIdUsuario || !citFecha || !citMotivo || !citDuracion) {
+      return res.status(400).json({ message: "Los campos fkIdUsuario, citFecha, citMotivo y citDuracion son obligatorios." });
+    }
+
+    const cita = await citaService.crearCitaAdminService({
+      fkIdUsuario: parseInt(fkIdUsuario),
+      citFecha,
+      citMotivo,
+      citDuracion: parseInt(citDuracion),
+      citEstado,
+      citObservaciones,
+    });
+
+    const fechaCita = new Date(cita.citFecha).toLocaleString("es-CO", {
+      dateStyle: "full", timeStyle: "short", timeZone: "UTC",
+    });
+    const esPendiente = (cita.citEstado || "PENDIENTE").toUpperCase() === "PENDIENTE";
+    crearNotificacionAutomatica(
+      cita.fkIdUsuario,
+      "Nueva cita agendada",
+      esPendiente
+        ? `Se te ha agendado una cita para el ${fechaCita}. Motivo: ${citMotivo}. Por favor confírmala y realiza el pago para asegurar tu turno.`
+        : `El equipo de OptiLuxe ha agendado una cita confirmada para el ${fechaCita}. Motivo: ${citMotivo}.`
+    ).catch(() => {});
+
+    return res.status(201).json({ message: "Cita creada exitosamente.", data: cita });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -214,17 +257,16 @@ export const actualizarEstadoCita = async (req, res, next) => {
 
     const citaActualizada = await citaService.actualizarEstadoCitaService(id, estado);
 
-    // Notificación automática al usuario cuando el admin cambia el estado
-    const estadoNorm = estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
-    if (["Cancelada", "Confirmada"].includes(estadoNorm)) {
+    // Notificación automática al usuario cuando el admin cancela la cita
+    if (estado.toUpperCase() === "CANCELADA") {
       const fecha = new Date(citaActualizada.citFecha).toLocaleString("es-CO", {
-        dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+        dateStyle: "full", timeStyle: "short", timeZone: "UTC",
       });
-      const titulo = estadoNorm === "Cancelada" ? "Cita cancelada" : "Cita confirmada";
-      const msg = estadoNorm === "Cancelada"
-        ? `Tu cita del ${fecha} ha sido cancelada. Comunícate con nosotros para reprogramarla.`
-        : `Tu cita del ${fecha} ha sido confirmada. ¡Te esperamos!`;
-      crearNotificacionAutomatica(citaActualizada.fkIdUsuario, titulo, msg).catch(() => { });
+      crearNotificacionAutomatica(
+        citaActualizada.fkIdUsuario,
+        "Cita cancelada",
+        `Tu cita del ${fecha} ha sido cancelada. Comunícate con nosotros para reprogramarla.`
+      ).catch(() => { });
     }
 
     res.json({ message: "Estado actualizado correctamente.", data: citaActualizada });
@@ -232,6 +274,35 @@ export const actualizarEstadoCita = async (req, res, next) => {
     if (error.status) {
       return res.status(error.status).json({ message: error.message });
     }
+    next(error);
+  }
+};
+
+/**
+ * POST /api/cita/:id/pago
+ * Requiere autenticación admin. Registra el pago presencial y cambia estado a EN_ATENCION.
+ * Body: { monto: number, metodoPago: "EFECTIVO" | "TARJETA" | "TRANSFERENCIA" }
+ */
+export const registrarPagoCita = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { monto, metodoPago } = req.body;
+
+    if (!monto || !metodoPago) {
+      return res.status(400).json({ message: "Los campos monto y metodoPago son obligatorios." });
+    }
+
+    const cita = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+
+    crearNotificacionAutomatica(
+      cita.fkIdUsuario,
+      "Pago registrado — Cita confirmada",
+      `Tu pago ha sido registrado exitosamente. Tu cita de ${cita.citMotivo} está confirmada. ¡Te esperamos!`
+    ).catch(() => {});
+
+    return res.status(200).json({ message: "Pago registrado y cita en atención.", data: cita });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
     next(error);
   }
 };
@@ -254,7 +325,7 @@ export const reprogramarCita = async (req, res, next) => {
 
     // Notificación automática de reprogramación
     const nuevaFecha = new Date(citaActualizada.citFecha).toLocaleString("es-CO", {
-      dateStyle: "full", timeStyle: "short", timeZone: "America/Bogota",
+      dateStyle: "full", timeStyle: "short", timeZone: "UTC",
     });
     crearNotificacionAutomatica(
       citaActualizada.fkIdUsuario,

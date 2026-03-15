@@ -42,7 +42,7 @@ export const obtenerNotificaciones = async (_req, res, next) => {
 export const obtenerMisNotificaciones = async (req, res, next) => {
     try {
         const data = await prisma.notificacion.findMany({
-            where: { fkIdUsuario: req.usuario.idUsuario, notEstado: "Enviada" },
+            where: { fkIdUsuario: req.usuario.idUsuario, notEstado: { in: ["Enviada", "Fallida"] } },
             orderBy: { notFechaProgramada: "desc" },
             take: 10,
         });

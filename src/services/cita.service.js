@@ -219,6 +219,80 @@ export async function actualizarEstadoCitaService(idCita, nuevoEstado) {
     });
 }
 
+export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, citDuracion, citEstado = "PENDIENTE", citObservaciones }) {
+    const citaFechaDate = new Date(citFecha);
+
+    if (citaFechaDate <= new Date()) {
+        const err = new Error("No se puede agendar una cita en el pasado.");
+        err.status = 400;
+        throw err;
+    }
+
+    const inicioMin = dateToUTCMinutes(citaFechaDate);
+    validarHorario(inicioMin, citDuracion);
+    await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
+
+    return prisma.cita.create({
+        data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
+    });
+}
+
+export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
+    const cita = await prisma.cita.findUnique({ where: { idCita: parseInt(idCita) } });
+    if (!cita) {
+        const err = new Error("Cita no encontrada.");
+        err.status = 404;
+        throw err;
+    }
+
+    const estadoActual = cita.citEstado.toUpperCase();
+    if (estadoActual !== "PENDIENTE") {
+        const err = new Error(`Solo se puede registrar pago para una cita en estado PENDIENTE. Estado actual: '${estadoActual}'.`);
+        err.status = 400;
+        throw err;
+    }
+
+    return prisma.$transaction(async (tx) => {
+        const carrito = await tx.carrito.create({
+            data: { fkIdUsuario: cita.fkIdUsuario, carEstado: "Completado", carFechaCreacion: new Date() },
+        });
+
+        const count = await tx.factura.count();
+        const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
+        const total = parseFloat(monto);
+        const subtotal = total / 1.19;
+        const iva = total - subtotal;
+
+        const factura = await tx.factura.create({
+            data: {
+                facNumero,
+                facConcepto: `Pago de servicio: ${cita.citMotivo}`,
+                facCondiciones: `Método: ${metodoPago}`,
+                facSubtotal: subtotal.toFixed(2),
+                facIva: iva.toFixed(2),
+                facTotal: total,
+                fkIdCarrito: carrito.idCarrito,
+                fkIdCita: parseInt(idCita),
+            },
+        });
+
+        await tx.encuesta.create({
+            data: {
+                enFecha: new Date(),
+                enTipo: "Servicio Cita",
+                fkIdCita: parseInt(idCita),
+                fkIdFactura: factura.idFactura,
+            },
+        });
+
+        return tx.cita.update({
+            where: { idCita: parseInt(idCita) },
+            data: { citEstado: "CONFIRMADA" },
+            include: { usuario: { select: { usuNombre: true, usuApellido: true, usuCorreo: true } } },
+        });
+    });
+}
+
 export async function reprogramarCitaService(idCita, nuevaFecha) {
     const cita = await prisma.cita.findUnique({ where: { idCita: parseInt(idCita) } });
     if (!cita) {

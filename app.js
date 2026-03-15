@@ -14,6 +14,7 @@ import encuestaRoutes from "./src/routes/encuesta.routes.js";
 import notificacionRoutes from "./src/routes/notificacion.routes.js";
 import webpushRoutes from "./src/routes/webpush.routes.js";
 import categoriaRoutes from "./src/routes/categoria.routes.js";
+import historiaClinicaRoutes from "./src/routes/historiaClinica.routes.js";
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use("/api/encuesta", encuestaRoutes);
 app.use("/api/notificacion", notificacionRoutes);
 app.use("/api/webpush", webpushRoutes);
 app.use("/api/categoria", categoriaRoutes);
+app.use("/api/historia-clinica", historiaClinicaRoutes);
 
 
 

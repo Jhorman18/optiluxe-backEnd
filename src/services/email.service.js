@@ -128,11 +128,13 @@ export const enviarConfirmacionCitaEmail = async (cita, usuario, factura = null)
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: "UTC",
     });
 
     const horaCita = new Date(cita.citFecha).toLocaleTimeString("es-CO", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "UTC",
     });
 
     const pagoHTML = factura

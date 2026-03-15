@@ -35,7 +35,7 @@ export function iniciarJobRecordatorioCitas() {
                 const fecha = new Date(cita.citFecha).toLocaleString("es-CO", {
                     dateStyle: "full",
                     timeStyle: "short",
-                    timeZone: "America/Bogota",
+                    timeZone: "UTC",
                 });
                 await crearNotificacionAutomatica(
                     cita.fkIdUsuario,
