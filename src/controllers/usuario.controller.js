@@ -1,6 +1,6 @@
 import * as usuarioService from "../services/usuario.service.js";
 
-export const getEstadisticasPacientes = async (req, res, next) => {
+export const getEstadisticasPacientes = async (_req, res, next) => {
     try {
         const activos = await usuarioService.contarPacientesActivosService();
         res.json({ activos });
@@ -26,6 +26,21 @@ export const toggleEstadoUsuario = async (req, res, next) => {
         const usuario = await usuarioService.toggleEstadoUsuarioService(id, estado);
         res.json(usuario);
     } catch (error) {
+        next(error);
+    }
+};
+
+export const crearUsuario = async (req, res, next) => {
+    try {
+        const usuario = await usuarioService.crearUsuarioService(req.body);
+        res.status(201).json(usuario);
+    } catch (error) {
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        if (error.code === "P2002") {
+            return res.status(409).json({ message: "El correo o documento ya está en uso." });
+        }
         next(error);
     }
 };

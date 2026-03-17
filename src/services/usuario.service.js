@@ -36,6 +36,36 @@ export async function toggleEstadoUsuarioService(id, estado) {
     });
 }
 
+export async function crearUsuarioService({ usuNombre, usuApellido, usuDocumento, usuTelefono, usuCorreo, usuPassword, usuDireccion, rolNombre }) {
+    const [correoExistente, documentoExistente] = await Promise.all([
+        prisma.usuario.findUnique({ where: { usuCorreo } }),
+        prisma.usuario.findUnique({ where: { usuDocumento } }),
+    ]);
+
+    if (correoExistente) throw { status: 409, message: "El correo ya está registrado" };
+    if (documentoExistente) throw { status: 409, message: "El documento ya está registrado" };
+
+    const rol = await prisma.rol.findUnique({ where: { rolNombre: rolNombre ?? "CLIENTE" } });
+    if (!rol) throw { status: 400, message: "Rol no válido" };
+
+    const passwordHash = await bcrypt.hash(usuPassword, 10);
+
+    return prisma.usuario.create({
+        data: {
+            usuNombre,
+            usuApellido,
+            usuDocumento,
+            usuTelefono: usuTelefono || null,
+            usuCorreo,
+            usuPassword: passwordHash,
+            usuDireccion: usuDireccion || null,
+            usuEstado: "ACTIVO",
+            fkIdRol: rol.idRol,
+        },
+        include: { rol: true },
+    });
+}
+
 export async function editarUsuarioService(id, { usuNombre, usuApellido, usuDocumento, usuTelefono, usuCorreo, usuDireccion, rolNombre, usuPassword }) {
     const data = { usuNombre, usuApellido, usuDocumento, usuTelefono, usuCorreo, usuDireccion };
 
