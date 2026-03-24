@@ -26,6 +26,7 @@ model usuario {
   log_acceso          log_acceso[]
   notificacion        notificacion[]
   rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
+  factura             factura[]
   webpush_suscripcion webpush_suscripcion[]
 }
 
@@ -78,19 +79,23 @@ model categoria {
 }
 
 model factura {
-  idFactura      Int        @id @default(autoincrement())
-  facNumero      String     @unique @db.VarChar(50)
-  facFecha       DateTime   @default(now())
-  facConcepto    String     @db.VarChar(200)
-  facCondiciones String?    @db.VarChar(300)
-  facSubtotal    Decimal    @db.Decimal(10, 2)
-  facIva         Decimal    @db.Decimal(10, 2)
-  facTotal       Decimal    @db.Decimal(10, 2)
-  fkIdCarrito    Int
-  fkIdCita       Int?
-  encuesta       encuesta[]
-  carrito        carrito    @relation(fields: [fkIdCarrito], references: [idCarrito])
-  cita           cita?      @relation(fields: [fkIdCita], references: [idCita])
+  idFactura          Int        @id @default(autoincrement())
+  facNumero          String     @unique @db.VarChar(50)
+  facFecha           DateTime   @default(now())
+  facConcepto        String     @db.Text
+  facCondiciones     String?    @db.VarChar(300)
+  facSubtotal        Decimal    @db.Decimal(10, 2)
+  facIva             Decimal    @db.Decimal(10, 2)
+  facTotal           Decimal    @db.Decimal(10, 2)
+  facEstado          String     @default("PAGADA") @db.VarChar(20)
+  facMotivoAnulacion String?    @db.Text
+  fkIdCarrito        Int?
+  fkIdCita           Int?
+  fkIdUsuario        Int?
+  usuario            usuario?   @relation(fields: [fkIdUsuario], references: [idUsuario])
+  encuesta           encuesta[]
+  carrito            carrito?   @relation(fields: [fkIdCarrito], references: [idCarrito])
+  cita               cita?      @relation(fields: [fkIdCita], references: [idCita])
 }
 
 model cita {

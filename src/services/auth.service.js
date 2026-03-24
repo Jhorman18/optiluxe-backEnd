@@ -101,7 +101,7 @@ export async function registerUsuarioService(data, solicitante = null) {
 
   if (rol && rol !== "CLIENTE") {
 
-    if (!solicitante || solicitante.rol?.rolNombre !== "ADMIN") {
+    if (!solicitante || solicitante.rol?.rolNombre !== "ADMINISTRADOR") {
       throw new HttpError(
         "No autorizado para crear este tipo de usuario",
         403
@@ -191,10 +191,10 @@ export async function forgotPasswordService(correo) {
     },
   });
 
-  return { 
-    token: resetToken, 
+  return {
+    token: resetToken,
     nombre: usuario.usuNombre,
-    correo: usuario.usuCorreo 
+    correo: usuario.usuCorreo
   };
 }
 

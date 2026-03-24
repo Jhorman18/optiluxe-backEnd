@@ -57,7 +57,8 @@ export async function getHorariosOcupadosService(fechaStr) {
     });
 }
 
-export async function registrarCitaService({ citMotivo, citFecha, citEstado = "Pendiente", citObservaciones, citDuracion, fkIdUsuario }) {
+export async function registrarCitaService({ citMotivo, citFecha, citEstado = "PENDIENTE", citObservaciones, citDuracion = 30, fkIdUsuario }, tx = null) {
+    const db = tx || prisma;
     const citaFechaDate = new Date(citFecha);
 
     if (citaFechaDate <= new Date()) {
@@ -70,7 +71,7 @@ export async function registrarCitaService({ citMotivo, citFecha, citEstado = "P
     validarHorario(inicioMin, citDuracion);
     await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
 
-    return prisma.cita.create({
+    return db.cita.create({
         data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
     });
 }
@@ -130,7 +131,7 @@ export async function tieneCitaActivaService(idUsuario) {
         where: {
             fkIdUsuario: idUsuario,
             citFecha: { gte: new Date() },
-            citEstado: { notIn: ["CANCELADA", "COMPLETADA", "Cancelada", "Completada"] },
+            citEstado: { notIn: ["CANCELADA", "COMPLETADA", "NO_ASISTIO"] },
         },
         orderBy: { citFecha: "asc" },
         select: { idCita: true, citFecha: true, citMotivo: true, citEstado: true, citDuracion: true },
@@ -151,9 +152,9 @@ const TRANSICIONES_VALIDAS = {
     NO_ASISTIO:  [],
 };
 
-export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda } = {}) {
+export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario } = {}) {
     const where = {};
-
+    if (fkIdUsuario) where.fkIdUsuario = parseInt(fkIdUsuario);
     if (estado) where.citEstado = { equals: estado, mode: "insensitive" };
 
     if (fechaDesde || fechaHasta) {
@@ -271,6 +272,7 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
                 facSubtotal: subtotal.toFixed(2),
                 facIva: iva.toFixed(2),
                 facTotal: total,
+                fkIdUsuario: cita.fkIdUsuario,
                 fkIdCarrito: carrito.idCarrito,
                 fkIdCita: parseInt(idCita),
             },

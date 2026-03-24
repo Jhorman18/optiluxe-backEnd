@@ -21,7 +21,10 @@ export function iniciarJobEnvioNotificaciones() {
 
         for (const notif of pendientes) {
             try {
-                if (notif.notCanal === "EMAIL") {
+                const enviarEmail = ["EMAIL", "EMAIL_Y_PUSH"].includes(notif.notCanal);
+                const enviarPush  = ["PUSH", "EMAIL_Y_PUSH", "INTERNA"].includes(notif.notCanal);
+
+                if (enviarEmail) {
                     await enviarNotificacionGeneralEmail(
                         notif.usuario.usuCorreo,
                         notif.notTitulo,
@@ -30,7 +33,9 @@ export function iniciarJobEnvioNotificaciones() {
                     );
                 }
 
-                enviarPushAlUsuario(notif.fkIdUsuario, notif.notTitulo, notif.notMensaje).catch(() => {});
+                if (enviarPush) {
+                    enviarPushAlUsuario(notif.fkIdUsuario, notif.notTitulo, notif.notMensaje).catch(() => {});
+                }
 
                 await prisma.notificacion.update({
                     where: { idNotificacion: notif.idNotificacion },

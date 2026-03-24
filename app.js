@@ -35,6 +35,7 @@ app.use("/api/cita", citaRoutes);
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/encuesta", encuestaRoutes);
 app.use("/api/notificacion", notificacionRoutes);
+app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/webpush", webpushRoutes);
 app.use("/api/categoria", categoriaRoutes);
 app.use("/api/historia-clinica", historiaClinicaRoutes);

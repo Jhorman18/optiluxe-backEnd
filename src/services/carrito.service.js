@@ -4,6 +4,7 @@ import { HttpError } from "../utils/httpErrors.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { crearNotificacionAutomatica } from "./notificacion.service.js";
 import { confirmacionCompraHtml } from "../templates/emails/confirmacionCompra.template.js";
+import { _generarSiguienteNumero } from "./factura.service.js";
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
@@ -142,15 +143,18 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
             });
         }
 
+        const facNumero = await _generarSiguienteNumero();
+
         const nuevaFactura = await tx.factura.create({
             data: {
-                facNumero:     `FAC-${Date.now()}`,
+                facNumero:     facNumero,
                 facFecha:      new Date(),
                 facConcepto:   "Compra de productos ópticos - OptiLuxe",
                 facCondiciones: metodoPago === "PSE" ? "Pago electrónico PSE" : "Pago en efectivo",
                 facSubtotal:   formatted.subtotal,
                 facIva:        formatted.iva,
                 facTotal:      formatted.total,
+                fkIdUsuario:   idUsuario,
                 fkIdCarrito:   carrito.idCarrito,
             },
         });

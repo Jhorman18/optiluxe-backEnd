@@ -1,5 +1,7 @@
 import { PrismaClient } from "../generated/prisma/index.js";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['warn', 'error'],
+});
 
 export default prisma;

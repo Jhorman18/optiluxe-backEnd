@@ -71,22 +71,20 @@ export const registrarCita = async (req, res) => {
     }
 
     const resultado = await prisma.$transaction(async (tx) => {
-
-      const nuevaCita = await tx.cita.create({
-        data: {
-          citFecha: new Date(citFecha),
-          citMotivo,
-          citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "Confirmada" : (citEstado || "Pendiente"),
-          citObservaciones,
-          fkIdUsuario,
-        },
-      });
+      // Usar el servicio para validar y crear la cita respetando horarios y disponibilidad
+      const nuevaCita = await citaService.registrarCitaService({
+        citFecha,
+        citMotivo,
+        citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "CONFIRMADA" : (citEstado || "PENDIENTE"),
+        citObservaciones,
+        fkIdUsuario,
+        citDuracion: 30 // Opcional: podrías recibirlo del body
+      }, tx);
 
       let nuevaFactura = null;
       let nuevaEncuesta = null;
 
       if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
-
         const nuevoCarrito = await tx.carrito.create({
           data: {
             fkIdUsuario,
@@ -110,6 +108,7 @@ export const registrarCita = async (req, res) => {
             facSubtotal: subtotal.toFixed(2),
             facIva: iva.toFixed(2),
             facTotal: total,
+            fkIdUsuario: fkIdUsuario,
             fkIdCarrito: nuevoCarrito.idCarrito,
             fkIdCita: nuevaCita.idCita,
           }
@@ -233,8 +232,8 @@ export const tieneCitaActiva = async (req, res, next) => {
  */
 export const getAllCitasAdmin = async (req, res, next) => {
   try {
-    const { estado, fechaDesde, fechaHasta, busqueda } = req.query;
-    const citas = await citaService.getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda });
+    const { estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario } = req.query;
+    const citas = await citaService.getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario });
     res.json(citas);
   } catch (error) {
     next(error);

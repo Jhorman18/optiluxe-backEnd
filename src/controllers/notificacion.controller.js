@@ -4,7 +4,7 @@ export const registrarNotificacion = async (req, res, next) => {
     try {
         const { notTitulo, notMensaje, notCanal, notFechaProgramada, fkIdUsuario } = req.body;
 
-        const canalValido = ["EMAIL", "INTERNA"].includes(notCanal?.toUpperCase())
+        const canalValido = ["EMAIL", "PUSH", "INTERNA", "EMAIL_Y_PUSH"].includes(notCanal?.toUpperCase())
             ? notCanal.toUpperCase()
             : "EMAIL";
 

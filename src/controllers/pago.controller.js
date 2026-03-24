@@ -49,7 +49,7 @@ export async function procesarPago(req, res, next) {
       facNumero: generarNumeroFactura(),
       facFecha: new Date(),
       facConcepto: "Compra online óptica",
-      facCondicionesPago: "Pago online",
+      facCondiciones: "Pago online",
       facSubtotal: subtotal,
       facIva: subtotal * 0.19,
       facTotal: subtotal * 1.19,
