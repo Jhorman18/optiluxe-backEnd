@@ -114,17 +114,8 @@ export const registrarCita = async (req, res) => {
           }
         });
 
-        nuevaEncuesta = await tx.encuesta.create({
-          data: {
-            enFecha: new Date(),
-            enTipo: "Servicio Cita",
-            fkIdCita: nuevaCita.idCita,
-            fkIdFactura: nuevaFactura.idFactura
-          }
-        });
       }
-
-      return { cita: nuevaCita, factura: nuevaFactura, encuesta: nuevaEncuesta };
+      return { cita: nuevaCita, factura: nuevaFactura };
     });
 
     // Correo de confirmación

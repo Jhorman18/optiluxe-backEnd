@@ -194,7 +194,8 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
     ).catch(() => {});
 
     return {
-        facNumero: factura.facNumero,
+      idFactura: factura.idFactura,
+      facNumero: factura.facNumero,
         metodoPago,
         subtotal:  formatted.subtotal,
         iva:       formatted.iva,

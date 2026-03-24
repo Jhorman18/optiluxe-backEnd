@@ -278,14 +278,6 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
             },
         });
 
-        await tx.encuesta.create({
-            data: {
-                enFecha: new Date(),
-                enTipo: "Servicio Cita",
-                fkIdCita: parseInt(idCita),
-                fkIdFactura: factura.idFactura,
-            },
-        });
 
         return tx.cita.update({
             where: { idCita: parseInt(idCita) },

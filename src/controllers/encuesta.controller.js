@@ -1,6 +1,9 @@
+import * as encuestaService from "../services/encuesta.service.js";
 import prisma from "../config/prisma.js";
 
-
+/**
+ * Obtiene el catálogo de preguntas activas
+ */
 export const obtenerPreguntas = async (req, res, next) => {
   try {
     const { categoria } = req.query;
@@ -19,7 +22,35 @@ export const obtenerPreguntas = async (req, res, next) => {
   }
 };
 
+/**
+ * Lista todas las encuestas registradas (Admin)
+ */
+export const getEncuestas = async (req, res, next) => {
+  try {
+    const encuestas = await encuestaService.getAllEncuestasService(req.query);
+    res.json(encuestas);
+  } catch (error) {
+    next(error);
+  }
+};
 
+/**
+ * Obtiene el detalle de una encuesta (Admin)
+ */
+export const getEncuesta = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const encuesta = await encuestaService.getEncuestaByIdService(id);
+    if (!encuesta) return res.status(404).json({ message: "Encuesta no encontrada" });
+    res.json(encuesta);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Registra una nueva encuesta (Cliente/Venta)
+ */
 export const crearEncuesta = async (req, res, next) => {
   try {
     const { enTipo, fkIdCita, fkIdFactura, respuestas } = req.body;
@@ -29,23 +60,21 @@ export const crearEncuesta = async (req, res, next) => {
     }
 
     const resultado = await prisma.$transaction(async (tx) => {
-
       const nuevaEncuesta = await tx.encuesta.create({
         data: {
           enFecha: new Date(),
           enTipo,
-          fkIdCita: fkIdCita || null,
-          fkIdFactura: fkIdFactura || null,
+          fkIdCita: fkIdCita ? parseInt(fkIdCita) : null,
+          fkIdFactura: fkIdFactura ? parseInt(fkIdFactura) : null,
         },
       });
-
 
       const respuestasCreadas = await Promise.all(
         respuestas.map((r) =>
           tx.respuesta_encuesta.create({
             data: {
               resValor: r.resValor.toString(),
-              fkIdPregunta: r.fkIdPregunta,
+              fkIdPregunta: parseInt(r.fkIdPregunta),
               fkIdEncuesta: nuevaEncuesta.idEncuesta,
             },
           })
@@ -59,6 +88,19 @@ export const crearEncuesta = async (req, res, next) => {
       message: "Encuesta registrada con éxito",
       data: resultado,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Elimina una encuesta (Admin)
+ */
+export const deleteEncuesta = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await encuestaService.eliminarEncuestaService(id);
+    res.json({ message: "Encuesta eliminada correctamente" });
   } catch (error) {
     next(error);
   }
