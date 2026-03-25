@@ -41,6 +41,11 @@ export const getAllEncuestasService = async (filtros = {}) => {
             select: { usuNombre: true, usuApellido: true, usuDocumento: true }
           }
         }
+      },
+      respuesta_encuesta: {
+        include: {
+          pregunta: true
+        }
       }
     },
     orderBy: { enFecha: 'desc' }
