@@ -4,9 +4,13 @@ import {
   crearEncuesta,
   getEncuestas,
   getEncuesta,
-  deleteEncuesta
+  deleteEncuesta,
+  obtenerPreguntasAdmin,
+  crearPregunta,
+  actualizarPregunta,
+  togglePregunta
 } from "../controllers/encuesta.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -14,7 +18,13 @@ const router = Router();
 router.get("/preguntas", obtenerPreguntas);
 router.post("/", authMiddleware, crearEncuesta);
 
-// Rutas administrativas
+// Rutas admin — Preguntas
+router.get("/preguntas/admin", authMiddleware, isAdmin, obtenerPreguntasAdmin);
+router.post("/preguntas", authMiddleware, isAdmin, crearPregunta);
+router.put("/preguntas/:id", authMiddleware, isAdmin, actualizarPregunta);
+router.patch("/preguntas/:id/toggle", authMiddleware, isAdmin, togglePregunta);
+
+// Rutas administrativas — Encuestas
 router.get("/", authMiddleware, getEncuestas);
 router.get("/:id", authMiddleware, getEncuesta);
 router.delete("/:id", authMiddleware, deleteEncuesta);

@@ -1,5 +1,6 @@
 import * as encuestaService from "../services/encuesta.service.js";
 import prisma from "../config/prisma.js";
+import { HttpError } from "../utils/httpErrors.js";
 
 /**
  * Obtiene el catálogo de preguntas activas
@@ -101,6 +102,90 @@ export const deleteEncuesta = async (req, res, next) => {
     const { id } = req.params;
     await encuestaService.eliminarEncuestaService(id);
     res.json({ message: "Encuesta eliminada correctamente" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== PREGUNTAS ADMIN ====================
+
+/**
+ * Lista TODAS las preguntas (activas e inactivas) — Admin
+ */
+export const obtenerPreguntasAdmin = async (req, res, next) => {
+  try {
+    const preguntas = await prisma.pregunta.findMany({
+      orderBy: [{ preCategoria: "asc" }, { idPregunta: "asc" }],
+    });
+    return res.json(preguntas);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Crea una nueva pregunta — Admin
+ */
+export const crearPregunta = async (req, res, next) => {
+  try {
+    const { preTexto, preTipo, preCategoria } = req.body;
+
+    if (!preTexto || !preTipo || !preCategoria) {
+      throw new HttpError(400, "Texto, tipo y categoría son obligatorios.");
+    }
+
+    const nueva = await prisma.pregunta.create({
+      data: { preTexto, preTipo, preCategoria, preActiva: true },
+    });
+
+    return res.status(201).json(nueva);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Actualiza una pregunta existente — Admin
+ */
+export const actualizarPregunta = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { preTexto, preTipo, preCategoria } = req.body;
+
+    const pregunta = await prisma.pregunta.update({
+      where: { idPregunta: parseInt(id) },
+      data: {
+        ...(preTexto && { preTexto }),
+        ...(preTipo && { preTipo }),
+        ...(preCategoria && { preCategoria }),
+      },
+    });
+
+    return res.json(pregunta);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Alterna el estado activo/inactivo de una pregunta — Admin
+ */
+export const togglePregunta = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const actual = await prisma.pregunta.findUnique({
+      where: { idPregunta: parseInt(id) },
+    });
+
+    if (!actual) throw new HttpError(404, "Pregunta no encontrada.");
+
+    const actualizada = await prisma.pregunta.update({
+      where: { idPregunta: parseInt(id) },
+      data: { preActiva: !actual.preActiva },
+    });
+
+    return res.json(actualizada);
   } catch (error) {
     next(error);
   }
