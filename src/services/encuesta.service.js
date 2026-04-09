@@ -4,29 +4,48 @@ import prisma from "../config/prisma.js";
  * Obtiene todas las encuestas registradas, incluyendo datos del cliente relacionado
  */
 export const getAllEncuestasService = async (filtros = {}) => {
-  const { tipo, busqueda } = filtros;
+  const { tipo, busqueda, fechaInicio, fechaFin } = filtros;
+
+  let dateFilter = null;
+  if (fechaInicio || fechaFin) {
+    dateFilter = { enFecha: {} };
+    if (fechaInicio) dateFilter.enFecha.gte = new Date(fechaInicio + 'T00:00:00');
+    if (fechaFin) {
+      const end = new Date(fechaFin + 'T00:00:00');
+      end.setHours(23, 59, 59, 999);
+      dateFilter.enFecha.lte = end;
+    }
+  }
+
+  const andConditions = [];
+  if (tipo) {
+    andConditions.push({
+      enTipo: {
+        contains: tipo === "Compra" ? "VENTA" : tipo === "Cita" ? "CITA" : tipo,
+        mode: 'insensitive'
+      }
+    });
+  }
+
+  if (busqueda) {
+    andConditions.push({
+      OR: [
+        { factura: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
+        { factura: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
+        { factura: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
+        { cita: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
+        { cita: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
+        { cita: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
+      ]
+    });
+  }
+
+  if (dateFilter) {
+    andConditions.push(dateFilter);
+  }
 
   const encuestas = await prisma.encuesta.findMany({
-    where: {
-      AND: [
-        tipo ? { 
-          enTipo: {
-            contains: tipo === "Compra" ? "VENTA" : tipo === "Cita" ? "CITA" : tipo,
-            mode: 'insensitive'
-          }
-        } : {},
-        busqueda ? {
-          OR: [
-            { factura: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
-            { factura: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
-            { factura: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
-            { cita: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
-            { cita: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
-            { cita: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
-          ]
-        } : {}
-      ]
-    },
+    where: andConditions.length > 0 ? { AND: andConditions } : {},
     include: {
       factura: {
         include: {
