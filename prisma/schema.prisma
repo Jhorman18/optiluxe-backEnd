@@ -184,3 +184,13 @@ model webpush_suscripcion {
   fkIdUsuario          Int
   usuario              usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
+
+model contacto {
+  idContacto     Int      @id @default(autoincrement())
+  conNombre      String   @db.VarChar(200)
+  conCorreo      String   @db.VarChar(255)
+  conTelefono    String?  @db.VarChar(50)
+  conMensaje     String   @db.Text
+  conFechaEnvio  DateTime @default(now())
+  conEstado      String   @default("PENDIENTE") @db.VarChar(50)
+}

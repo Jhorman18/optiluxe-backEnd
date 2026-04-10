@@ -310,3 +310,70 @@ export const enviarNotificacionGeneralEmail = async (correo, titulo, mensaje, no
     console.error("❌ Error enviando correo de notificación general:", error);
   }
 };
+
+/**
+ * Envía una respuesta a un mensaje de contacto
+ * @param {string} correo - Email del cliente
+ * @param {string} nombre - Nombre del cliente
+ * @param {string} mensajeOriginal - El mensaje que envió el cliente
+ * @param {string} respuestaAdmin - La respuesta redactada por el administrador
+ */
+export const enviarRespuestaContactoEmail = async (correo, nombre, mensajeOriginal, respuestaAdmin) => {
+  try {
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
+        <div style="background-color: #ffffff; padding: 30px; text-align: center;">
+          <img src="cid:logoOptiLuxe" alt="OptiLuxe Logo" style="max-width:160px;">
+        </div>
+
+        <div style="height: 4px; background-color: #2563eb;"></div>
+
+        <div style="padding: 30px; color: #333;">
+
+          <h2 style="color: #1e40af;">Hola ${nombre},</h2>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">
+            Gracias por contactar con <strong>OptiLuxe</strong>. Hemos revisado tu consulta y aquí tienes nuestra respuesta:
+          </p>
+
+          <div style="margin: 25px 0; padding: 25px; background-color: #eff6ff; border-radius: 12px; border: 1px solid #dbeafe;">
+            <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #1e3a8a; white-space: pre-wrap;">${respuestaAdmin}</p>
+          </div>
+
+          <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #f3f4f6;">
+            <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; color: #9ca3af; uppercase; tracking-wider;">Tu mensaje original:</p>
+            <p style="margin: 0; font-size: 14px; color: #6b7280; font-style: italic;">"${mensajeOriginal}"</p>
+          </div>
+
+          <p style="margin-top: 30px; font-size: 15px; color: #4b5563;">
+            Si tienes más preguntas, no dudes en responder a este correo o contactarnos por WhatsApp.
+          </p>
+
+          ${contactoHTML}
+
+          <p style="margin-top: 40px; font-size: 14px; color: #9ca3af; text-align: center;">
+            © ${new Date().getFullYear()} OptiLuxe - Visión Clara
+          </p>
+
+        </div>
+      </div>
+    </div>
+    `;
+
+    await transporter.sendMail({
+      from: `OptiLuxe <${process.env.EMAIL_USER}>`,
+      to: correo,
+      subject: "Respuesta a tu consulta - OptiLuxe",
+      html,
+      attachments: [logoAttachment],
+    });
+
+    console.log(`✅ Respuesta de contacto enviada a ${correo}`);
+
+  } catch (error) {
+    console.error("❌ Error enviando respuesta de contacto:", error);
+    throw error;
+  }
+};

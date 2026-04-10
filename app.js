@@ -15,6 +15,7 @@ import notificacionRoutes from "./src/routes/notificacion.routes.js";
 import webpushRoutes from "./src/routes/webpush.routes.js";
 import categoriaRoutes from "./src/routes/categoria.routes.js";
 import historiaClinicaRoutes from "./src/routes/historiaClinica.routes.js";
+import contactoRoutes from "./src/routes/contacto.routes.js";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/webpush", webpushRoutes);
 app.use("/api/categoria", categoriaRoutes);
 app.use("/api/historia-clinica", historiaClinicaRoutes);
+app.use("/api/contacto", contactoRoutes);
 
 
 
