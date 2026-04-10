@@ -1,14 +1,14 @@
 import { Router } from "express";
 import * as facturaCtrl from "../controllers/factura.controller.js";
-import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Rutas protegidas para Administrador
-router.get("/", authMiddleware, isAdmin, facturaCtrl.getFacturas);
-router.get("/estadisticas", authMiddleware, facturaCtrl.getEstadisticasVentas); // Mantener para dashboard
-router.get("/:id", authMiddleware, isAdmin, facturaCtrl.getFactura);
-router.post("/", authMiddleware, isAdmin, facturaCtrl.postFactura);
+// Rutas protegidas
+router.get("/", authMiddleware, isStaff, facturaCtrl.getFacturas);
+router.get("/estadisticas", authMiddleware, isStaff, facturaCtrl.getEstadisticasVentas); // Mantener para dashboard
+router.get("/:id", authMiddleware, isStaff, facturaCtrl.getFactura);
+router.post("/", authMiddleware, isStaff, facturaCtrl.postFactura);
 router.put("/:id", authMiddleware, isAdmin, facturaCtrl.putFactura);
 router.patch("/:id/anular", authMiddleware, isAdmin, facturaCtrl.patchAnularFactura);
 

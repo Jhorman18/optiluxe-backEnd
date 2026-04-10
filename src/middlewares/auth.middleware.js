@@ -44,3 +44,11 @@ export function isAdmin(req, res, next) {
   }
   return next(new HttpError("No tienes permisos de administrador", 403));
 }
+
+export function isStaff(req, res, next) {
+  const rolesPermitidos = ["ADMINISTRADOR", "EMPLEADO"];
+  if (req.usuario && req.usuario.rol && rolesPermitidos.includes(req.usuario.rol.rolNombre)) {
+    return next();
+  }
+  return next(new HttpError("No tienes permisos de personal autorizado", 403));
+}

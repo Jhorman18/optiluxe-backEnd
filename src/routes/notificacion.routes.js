@@ -6,7 +6,7 @@ import {
   obtenerMisNotificaciones,
   marcarLeida
 } from "../controllers/notificacion.controller.js";
-import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -14,9 +14,9 @@ const router = Router();
 router.get("/mis-notificaciones", authMiddleware, obtenerMisNotificaciones);
 router.patch("/:id/leer", authMiddleware, marcarLeida);
 
-// --- RUTAS DE ADMINISTRADOR ---
-router.post("/", authMiddleware, isAdmin, registrarNotificacion);
-router.get("/", authMiddleware, isAdmin, obtenerNotificaciones);
-router.delete("/:id", authMiddleware, isAdmin, eliminarNotificacion);
+// --- RUTAS DE PERSONAL AUTORIZADO ---
+router.post("/", authMiddleware, isStaff, registrarNotificacion);
+router.get("/", authMiddleware, isStaff, obtenerNotificaciones);
+router.delete("/:id", authMiddleware, isStaff, eliminarNotificacion);
 
 export default router;

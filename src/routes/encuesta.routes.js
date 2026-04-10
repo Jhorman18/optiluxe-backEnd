@@ -10,7 +10,7 @@ import {
   actualizarPregunta,
   togglePregunta
 } from "../controllers/encuesta.controller.js";
-import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -18,15 +18,15 @@ const router = Router();
 router.get("/preguntas", obtenerPreguntas);
 router.post("/", authMiddleware, crearEncuesta);
 
-// Rutas admin — Preguntas
-router.get("/preguntas/admin", authMiddleware, isAdmin, obtenerPreguntasAdmin);
+// Rutas administrativas — Preguntas
+router.get("/preguntas/admin", authMiddleware, isStaff, obtenerPreguntasAdmin);
 router.post("/preguntas", authMiddleware, isAdmin, crearPregunta);
 router.put("/preguntas/:id", authMiddleware, isAdmin, actualizarPregunta);
 router.patch("/preguntas/:id/toggle", authMiddleware, isAdmin, togglePregunta);
 
-// Rutas administrativas — Encuestas
-router.get("/", authMiddleware, getEncuestas);
-router.get("/:id", authMiddleware, getEncuesta);
-router.delete("/:id", authMiddleware, deleteEncuesta);
+// Rutas administrativas — Encuestas (Registros)
+router.get("/", authMiddleware, isStaff, getEncuestas);
+router.get("/:id", authMiddleware, isStaff, getEncuesta);
+router.delete("/:id", authMiddleware, isAdmin, deleteEncuesta);
 
 export default router;

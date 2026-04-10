@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isStaff } from "../middlewares/auth.middleware.js";
 import {
   crearHistoriaClinica,
   listarHistoriasClinicas,
@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-router.use(authMiddleware, isAdmin);
+router.use(authMiddleware, isStaff);
 
 router.get("/", listarHistoriasClinicas);
 router.get("/:id", obtenerHistoria);
