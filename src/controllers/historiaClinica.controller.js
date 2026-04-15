@@ -3,6 +3,9 @@ import {
   listarHistoriasClinicasService,
   obtenerHistoriaPorCitaService,
   obtenerHistoriaPorIdService,
+  listarHistoriasPorUsuarioService,
+  actualizarHistoriaClinicaService,
+  eliminarHistoriaClinicaService,
 } from "../services/historiaClinica.service.js";
 
 export const crearHistoriaClinica = async (req, res, next) => {
@@ -41,6 +44,33 @@ export const obtenerHistoria = async (req, res, next) => {
     const { id } = req.params;
     const historia = await obtenerHistoriaPorIdService(id);
     res.json({ historia });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listarMisHistorias = async (req, res, next) => {
+  try {
+    const historias = await listarHistoriasPorUsuarioService(req.usuario.idUsuario);
+    res.json({ historias });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const actualizarHistoria = async (req, res, next) => {
+  try {
+    const historia = await actualizarHistoriaClinicaService(req.params.id, req.body);
+    res.json({ historia });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const eliminarHistoria = async (req, res, next) => {
+  try {
+    await eliminarHistoriaClinicaService(req.params.id);
+    res.json({ message: "Historia clínica eliminada" });
   } catch (error) {
     next(error);
   }

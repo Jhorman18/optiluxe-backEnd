@@ -1,5 +1,14 @@
 import * as facturaService from "../services/factura.service.js";
 
+export const getMisFacturas = async (req, res) => {
+  try {
+    const facturas = await facturaService.getFacturasPorUsuario(req.usuario.idUsuario);
+    res.json(facturas);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener tus pedidos", error: error.message });
+  }
+};
+
 export const getFacturas = async (req, res) => {
   try {
     const facturas = await facturaService.getAllFacturas(req.query);

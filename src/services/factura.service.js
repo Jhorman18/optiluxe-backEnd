@@ -186,6 +186,28 @@ export const anularFactura = async (id, motivo) => {
   return await getFacturaById(anulada.idFactura);
 };
 
+export async function getFacturasPorUsuario(idUsuario) {
+  const facturas = await prisma.factura.findMany({
+    where: { fkIdUsuario: parseInt(idUsuario) },
+    orderBy: { facFecha: "desc" },
+    include: {
+      carrito: {
+        include: {
+          carrito_producto: {
+            include: { producto: true }
+          }
+        }
+      }
+    }
+  });
+  return facturas.map(f => ({
+    ...f,
+    facSubtotal: Number(f.facSubtotal),
+    facIva:      Number(f.facIva),
+    facTotal:    Number(f.facTotal),
+  }));
+}
+
 export async function obtenerVentasMesService() {
   const hoy = new Date();
   const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);

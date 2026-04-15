@@ -4,7 +4,10 @@ import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware
 
 const router = Router();
 
-// Rutas protegidas
+// Ruta cliente: ver sus propios pedidos
+router.get("/mis", authMiddleware, facturaCtrl.getMisFacturas);
+
+// Rutas staff
 router.get("/", authMiddleware, isStaff, facturaCtrl.getFacturas);
 router.get("/estadisticas", authMiddleware, isStaff, facturaCtrl.getEstadisticasVentas); // Mantener para dashboard
 router.get("/:id", authMiddleware, isStaff, facturaCtrl.getFactura);

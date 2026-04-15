@@ -6,13 +6,13 @@ import {
     actualizarProducto,
     toggleEstadoProducto
 } from "../controllers/producto.controller.js";
-import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin, isStaff, optionalAuthMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Rutas lectura protegidas para Personal
-router.get("/", authMiddleware, isStaff, listarProductos);
-router.get("/:id", authMiddleware, isStaff, obtenerProducto);
+// Rutas públicas de lectura (admin=true solo funciona si el token es de staff)
+router.get("/", optionalAuthMiddleware, listarProductos);
+router.get("/:id", optionalAuthMiddleware, obtenerProducto);
 
 // Rutas administrativas protegidas
 router.post("/", authMiddleware, isAdmin, crearProducto); // Solo Admin crea

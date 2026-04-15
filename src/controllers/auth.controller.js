@@ -58,10 +58,18 @@ export const me = async (req, res, next) => {
     return res.status(200).json({
       usuario: {
         id: u.idUsuario,
+        idUsuario: u.idUsuario,
         nombre: u.usuNombre,
         apellido: u.usuApellido,
         correo: u.usuCorreo,
         rol: u.rol?.rolNombre,
+        usuNombre:    u.usuNombre,
+        usuApellido:  u.usuApellido,
+        usuDocumento: u.usuDocumento,
+        usuTelefono:  u.usuTelefono,
+        usuCorreo:    u.usuCorreo,
+        usuDireccion: u.usuDireccion,
+        usuEstado:    u.usuEstado,
       },
     });
   } catch (error) {

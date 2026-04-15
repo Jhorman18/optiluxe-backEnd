@@ -90,3 +90,27 @@ export async function obtenerHistoriaPorIdService(id) {
   if (!historia) throw new HttpError("Historia clínica no encontrada", 404);
   return historia;
 }
+
+export async function listarHistoriasPorUsuarioService(idUsuario) {
+  return prisma.historia_clinica.findMany({
+    where: { cita: { fkIdUsuario: parseInt(idUsuario) } },
+    include: INCLUDE_CITA,
+    orderBy: { hisFecha: "desc" },
+  });
+}
+
+export async function actualizarHistoriaClinicaService(id, data) {
+  const { hisDiagnostico, hisFormulaOptica, hisObservaciones } = data;
+  const historia = await prisma.historia_clinica.update({
+    where: { idHistoriaClinica: parseInt(id) },
+    data: { hisDiagnostico, hisFormulaOptica, hisObservaciones: hisObservaciones ?? null },
+    include: INCLUDE_CITA,
+  });
+  return historia;
+}
+
+export async function eliminarHistoriaClinicaService(id) {
+  return prisma.historia_clinica.delete({
+    where: { idHistoriaClinica: parseInt(id) },
+  });
+}
