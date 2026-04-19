@@ -54,7 +54,7 @@ export const patchAnularFactura = async (req, res) => {
         message: "El motivo de anulación es obligatorio (mín. 10 caracteres)" 
       });
     }
-    const anulada = await facturaService.anularFactura(req.params.id, motivo);
+    const anulada = await facturaService.anularFactura(req.params.id, motivo, req.usuario.idUsuario);
     res.json(anulada);
   } catch (error) {
     res.status(400).json({ message: "Error al anular factura", error: error.message });

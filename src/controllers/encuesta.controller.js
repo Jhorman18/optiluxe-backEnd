@@ -60,6 +60,17 @@ export const crearEncuesta = async (req, res, next) => {
       return res.status(400).json({ message: "Tipo y respuestas son obligatorios." });
     }
 
+    // Verificar que no exista ya una encuesta para la misma cita o factura
+    const whereExistente = {};
+    if (fkIdCita)    whereExistente.fkIdCita    = parseInt(fkIdCita);
+    if (fkIdFactura) whereExistente.fkIdFactura = parseInt(fkIdFactura);
+    if (Object.keys(whereExistente).length > 0) {
+      const yaExiste = await prisma.encuesta.findFirst({ where: whereExistente });
+      if (yaExiste) {
+        return res.status(409).json({ message: "Ya enviaste una encuesta para esta cita o compra." });
+      }
+    }
+
     const resultado = await prisma.$transaction(async (tx) => {
       const nuevaEncuesta = await tx.encuesta.create({
         data: {

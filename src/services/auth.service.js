@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { HttpError } from "../utils/httpErrors.js";
@@ -162,8 +163,6 @@ export async function registerUsuarioService(data, solicitante = null) {
     },
   };
 }
-
-import crypto from "crypto";
 
 export async function forgotPasswordService(correo) {
   if (!correo) {

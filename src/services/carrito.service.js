@@ -4,7 +4,6 @@ import { HttpError } from "../utils/httpErrors.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { crearNotificacionAutomatica } from "./notificacion.service.js";
 import { confirmacionCompraHtml } from "../templates/emails/confirmacionCompra.template.js";
-import { _generarSiguienteNumero } from "./factura.service.js";
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
@@ -143,7 +142,20 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
             });
         }
 
-        const facNumero = await _generarSiguienteNumero();
+        const currentYear = new Date().getFullYear();
+        const prefix = `FAC-${currentYear}-`;
+        const lastFactura = await tx.factura.findFirst({
+            where: { facNumero: { startsWith: prefix } },
+            orderBy: { facNumero: "desc" },
+        });
+        let nextSeq = 1;
+        if (lastFactura) {
+            const parts = lastFactura.facNumero.split("-");
+            const last = parseInt(parts[parts.length - 1]);
+            if (!isNaN(last)) nextSeq = last + 1;
+        }
+        const facNumero = `${prefix}${String(nextSeq).padStart(5, "0")}`;
+
 
         const nuevaFactura = await tx.factura.create({
             data: {

@@ -2,28 +2,27 @@ import prisma from "../config/prisma.js";
 
 /**
  * Genera el siguiente número de factura secuencial: FAC-YYYY-XXXXX
+ * Se ejecuta dentro de una transacción para evitar duplicados en concurrencia.
  */
-export async function _generarSiguienteNumero() {
+async function _generarSiguienteNumero(tx = prisma) {
   const currentYear = new Date().getFullYear();
   const prefix = `FAC-${currentYear}-`;
-  
-  const lastFactura = await prisma.factura.findFirst({
-    where: {
-      facNumero: { startsWith: prefix }
-    },
-    orderBy: { facNumero: 'desc' },
+
+  // Bloqueo pesimista: findFirst con orderBy dentro de la transacción garantiza
+  // que dos requests simultáneos no lean el mismo "último número".
+  const lastFactura = await tx.factura.findFirst({
+    where: { facNumero: { startsWith: prefix } },
+    orderBy: { facNumero: "desc" },
   });
 
   let nextSequence = 1;
   if (lastFactura) {
-    const parts = lastFactura.facNumero.split('-');
+    const parts = lastFactura.facNumero.split("-");
     const lastSequence = parseInt(parts[parts.length - 1]);
-    if (!isNaN(lastSequence)) {
-      nextSequence = lastSequence + 1;
-    }
+    if (!isNaN(lastSequence)) nextSequence = lastSequence + 1;
   }
 
-  return `${prefix}${nextSequence.toString().padStart(5, '0')}`;
+  return `${prefix}${nextSequence.toString().padStart(5, "0")}`;
 }
 
 export const getAllFacturas = async (filtros) => {
@@ -135,22 +134,22 @@ export const getFacturaById = async (id) => {
 
 export const createFactura = async (data) => {
   const { facSubtotal, facIva, facTotal, fkIdUsuario, fkIdCarrito, fkIdCita, fkIdProducto, facNumero, ...rest } = data;
-  
-  // Si no viene número de factura, lo generamos automáticamente
-  const nFactura = facNumero || await _generarSiguienteNumero();
 
-  const nueva = await prisma.factura.create({
-    data: {
-      ...rest,
-      facNumero: nFactura,
-      facSubtotal: parseFloat(facSubtotal),
-      facIva: parseFloat(facIva),
-      facTotal: parseFloat(facTotal),
-      fkIdUsuario: fkIdUsuario ? parseInt(fkIdUsuario) : null,
-      fkIdCarrito: fkIdCarrito ? parseInt(fkIdCarrito) : null,
-      fkIdCita: fkIdCita ? parseInt(fkIdCita) : null,
-      fkIdProducto: fkIdProducto ? parseInt(fkIdProducto) : null,
-    }
+  const nueva = await prisma.$transaction(async (tx) => {
+    const nFactura = facNumero || await _generarSiguienteNumero(tx);
+    return tx.factura.create({
+      data: {
+        ...rest,
+        facNumero: nFactura,
+        facSubtotal: parseFloat(facSubtotal),
+        facIva: parseFloat(facIva),
+        facTotal: parseFloat(facTotal),
+        fkIdUsuario: fkIdUsuario ? parseInt(fkIdUsuario) : null,
+        fkIdCarrito: fkIdCarrito ? parseInt(fkIdCarrito) : null,
+        fkIdCita: fkIdCita ? parseInt(fkIdCita) : null,
+        fkIdProducto: fkIdProducto ? parseInt(fkIdProducto) : null,
+      },
+    });
   });
 
   return await getFacturaById(nueva.idFactura);
@@ -174,13 +173,15 @@ export const updateFactura = async (id, data) => {
   return await getFacturaById(actualizada.idFactura);
 };
 
-export const anularFactura = async (id, motivo) => {
+export const anularFactura = async (id, motivo, idUsuarioQueAnula = null) => {
   const anulada = await prisma.factura.update({
     where: { idFactura: parseInt(id) },
     data: {
       facEstado: "ANULADA",
-      facMotivoAnulacion: motivo
-    }
+      facMotivoAnulacion: motivo,
+      facAnuladoPor: idUsuarioQueAnula,
+      facFechaAnulacion: new Date(),
+    },
   });
 
   return await getFacturaById(anulada.idFactura);

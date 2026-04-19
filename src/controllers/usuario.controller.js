@@ -1,6 +1,19 @@
 import * as usuarioService from "../services/usuario.service.js";
 import { registerUsuarioService } from "../services/auth.service.js";
 
+export const editarPerfilPropio = async (req, res, next) => {
+    try {
+        const id = req.usuario.idUsuario;
+        const usuario = await usuarioService.editarPerfilPropioService(id, req.body);
+        res.json(usuario);
+    } catch (error) {
+        if (error.code === "P2002") {
+            return res.status(409).json({ message: "El correo ya está en uso por otro usuario." });
+        }
+        next(error);
+    }
+};
+
 export const getEstadisticasPacientes = async (req, res, next) => {
     try {
         const activos = await usuarioService.contarPacientesActivosService();

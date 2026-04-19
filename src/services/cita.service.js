@@ -144,7 +144,7 @@ export async function tieneCitaActivaService(idUsuario) {
 const ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "CANCELADA", "NO_ASISTIO"];
 
 const TRANSICIONES_VALIDAS = {
-    PENDIENTE:   ["CONFIRMADA", "EN_ATENCION", "CANCELADA", "NO_ASISTIO"],
+    PENDIENTE:   ["CONFIRMADA", "CANCELADA", "NO_ASISTIO"],
     CONFIRMADA:  ["EN_ATENCION", "CANCELADA", "NO_ASISTIO"],
     EN_ATENCION: ["COMPLETADA"],
     COMPLETADA:  [],
@@ -221,6 +221,13 @@ export async function actualizarEstadoCitaService(idCita, nuevoEstado) {
 }
 
 export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, citDuracion, citEstado = "PENDIENTE", citObservaciones }) {
+    const usuarioExiste = await prisma.usuario.findUnique({ where: { idUsuario: parseInt(fkIdUsuario) } });
+    if (!usuarioExiste) {
+        const err = new Error("El usuario seleccionado no existe.");
+        err.status = 404;
+        throw err;
+    }
+
     const citaFechaDate = new Date(citFecha);
 
     if (citaFechaDate <= new Date()) {

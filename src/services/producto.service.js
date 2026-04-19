@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { HttpError } from "../utils/httpErrors.js";
 
 export async function listarProductosService({ categoria, busqueda, admin = false } = {}) {
   const where = {};
@@ -77,6 +78,16 @@ export async function buscarProductoPorNombreYCategoriaService(nombre, idCategor
 }
 
 export async function crearProductoService(data) {
+  const existente = await prisma.producto.findFirst({
+    where: {
+      proNombre: { equals: data.nombre, mode: "insensitive" },
+      fkIdCategoria: parseInt(data.idCategoria),
+    },
+  });
+  if (existente) {
+    throw new HttpError("Ya existe un producto con ese nombre en esta categoría.", 409);
+  }
+
   return await prisma.producto.create({
     data: {
       proNombre: data.nombre,

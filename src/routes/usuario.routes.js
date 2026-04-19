@@ -7,6 +7,7 @@ const router = Router();
 router.get("/", authMiddleware, isStaff, usuarioController.getUsuarios);
 router.get("/estadisticas", authMiddleware, isStaff, usuarioController.getEstadisticasPacientes);
 router.post("/", authMiddleware, isStaff, usuarioController.crearUsuario);
+router.put("/me", authMiddleware, usuarioController.editarPerfilPropio);
 router.patch("/:id/estado", authMiddleware, isAdmin, usuarioController.toggleEstadoUsuario);
 router.put("/:id", authMiddleware, isAdmin, usuarioController.editarUsuario);
 
