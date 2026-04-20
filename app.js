@@ -17,6 +17,7 @@ import categoriaRoutes from "./src/routes/categoria.routes.js";
 import historiaClinicaRoutes from "./src/routes/historiaClinica.routes.js";
 import contactoRoutes from "./src/routes/contacto.routes.js";
 import reporteRoutes from "./src/routes/reporte.routes.js";
+import servicioRoutes from "./src/routes/servicio.routes.js";
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use("/api/categoria", categoriaRoutes);
 app.use("/api/historia-clinica", historiaClinicaRoutes);
 app.use("/api/contacto", contactoRoutes);
 app.use("/api/reporte", reporteRoutes);
+app.use("/api/servicio", servicioRoutes);
 
 
 

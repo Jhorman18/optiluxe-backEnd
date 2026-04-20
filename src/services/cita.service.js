@@ -90,19 +90,38 @@ export async function obtenerProximasCitasService(limit = 4) {
         where: { citFecha: { gte: new Date() }, citEstado: { not: "CANCELADA" } },
         orderBy: { citFecha: "asc" },
         take: limit,
-        include: { usuario: true },
+        include: { 
+            usuario: true,
+            factura: true,
+            encuesta: { include: { factura: true } },
+        },
     });
 
-    return citas.map((cita) => ({
-        id: cita.idCita,
-        paciente: `${cita.usuario.usuNombre} ${cita.usuario.usuApellido}`,
-        tipo: cita.citMotivo,
-        hora: new Date(cita.citFecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
-        estado: cita.citEstado,
-        color: cita.citEstado.toUpperCase() === "CONFIRMADA"
-            ? "bg-green-100 text-green-700"
-            : "bg-yellow-100 text-yellow-700",
-    }));
+    return citas.map((cita) => {
+        let metodoPago = "Pendiente";
+        let fac = cita.factura?.[0] || cita.encuesta?.[0]?.factura;
+
+        if (fac) {
+            const condiciones = fac.facCondiciones || "";
+            if (condiciones.includes("EFECTIVO")) metodoPago = "Efectivo";
+            else if (condiciones.includes("PSE") || condiciones.includes("TARJETA")) metodoPago = "PSE";
+            else metodoPago = "Procesado";
+        } else if (["COMPLETADA", "EN_ATENCION", "CONFIRMADA"].includes(cita.citEstado.toUpperCase())) {
+            metodoPago = "Procesado";
+        }
+
+        return {
+            id: cita.idCita,
+            paciente: `${cita.usuario.usuNombre} ${cita.usuario.usuApellido}`,
+            tipo: cita.citMotivo,
+            hora: new Date(cita.citFecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+            estado: cita.citEstado,
+            metodoPago,
+            color: cita.citEstado.toUpperCase() === "CONFIRMADA"
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700",
+        };
+    });
 }
 
 export async function contarCitasPendientesService() {
@@ -127,7 +146,10 @@ export async function getMisCitasService(idUsuario) {
             citObservaciones: true,
             citDuracion: true,
             factura: {
-                select: { idFactura: true, facNumero: true, facTotal: true, facFecha: true },
+                select: { idFactura: true, facNumero: true, facTotal: true, facFecha: true, facCondiciones: true },
+            },
+            encuesta: {
+                include: { factura: true },
             },
         },
     });
@@ -188,6 +210,7 @@ export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, 
                 select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
             },
             encuesta: { include: { factura: true } },
+            factura: true,
             historia_clinica: true,
         },
     });
@@ -300,11 +323,13 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
         });
 
 
-        return tx.cita.update({
+        const citaActualizada = await tx.cita.update({
             where: { idCita: parseInt(idCita) },
             data: { citEstado: "CONFIRMADA" },
-            include: { usuario: { select: { usuNombre: true, usuApellido: true, usuCorreo: true } } },
+            include: { usuario: { select: { idUsuario: true, usuNombre: true, usuApellido: true, usuCorreo: true } } },
         });
+
+        return { cita: citaActualizada, factura };
     });
 }
 

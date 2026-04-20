@@ -194,3 +194,12 @@ model contacto {
   conFechaEnvio DateTime @default(now())
   conEstado     String   @default("PENDIENTE") @db.VarChar(20)
 }
+
+model servicio {
+  idServicio     Int      @id @default(autoincrement())
+  serNombre      String   @db.VarChar(150)
+  serDescripcion String?  @db.Text
+  serPrecio      Decimal  @db.Decimal(10, 2)
+  serDuracion    Int      @default(30)
+  serEstado      String   @default("ACTIVO") @db.VarChar(20)
+}

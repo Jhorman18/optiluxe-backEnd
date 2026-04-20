@@ -8,8 +8,14 @@ export const getReporteVentas = async (req, res, next) => {
         const where = {};
         if (fechaInicio || fechaFin) {
             where.facFecha = {};
-            if (fechaInicio) where.facFecha.gte = new Date(fechaInicio);
-            if (fechaFin) where.facFecha.lte = new Date(fechaFin);
+            if (fechaInicio) {
+                // Forzamos interpretación local para que coincida con el calendario del usuario
+                where.facFecha.gte = new Date(fechaInicio + "T00:00:00");
+            }
+            if (fechaFin) {
+                // Forzamos fin de día local
+                where.facFecha.lte = new Date(fechaFin + "T23:59:59");
+            }
         }
 
         const facturas = await prisma.factura.findMany({
@@ -73,8 +79,12 @@ export const getReporteCitas = async (req, res, next) => {
         const where = {};
         if (fechaInicio || fechaFin) {
             where.citFecha = {};
-            if (fechaInicio) where.citFecha.gte = new Date(fechaInicio);
-            if (fechaFin) where.citFecha.lte = new Date(fechaFin);
+            if (fechaInicio) {
+                where.citFecha.gte = new Date(fechaInicio + "T00:00:00");
+            }
+            if (fechaFin) {
+                where.citFecha.lte = new Date(fechaFin + "T23:59:59");
+            }
         }
 
         const citas = await prisma.cita.findMany({

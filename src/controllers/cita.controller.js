@@ -282,15 +282,18 @@ export const registrarPagoCita = async (req, res, next) => {
       return res.status(400).json({ message: "Los campos monto y metodoPago son obligatorios." });
     }
 
-    const cita = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+    const { cita, factura } = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+
+    // Enviar correo de confirmación con la factura
+    enviarConfirmacionCitaEmail(cita, cita.usuario, factura);
 
     crearNotificacionAutomatica(
       cita.fkIdUsuario,
       "Pago registrado — Cita confirmada",
-      `Tu pago ha sido registrado exitosamente. Tu cita de ${cita.citMotivo} está confirmada. ¡Te esperamos!`
+      `Tu pago ha sido registrado exitosamente por un valor de $${Number(monto).toLocaleString("es-CO")}. Tu cita de ${cita.citMotivo} está confirmada.`
     ).catch(() => {});
 
-    return res.status(200).json({ message: "Pago registrado y cita en atención.", data: cita });
+    return res.status(200).json({ message: "Pago registrado y cita confirmada.", data: cita });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ message: error.message });
     next(error);
