@@ -48,9 +48,16 @@ export async function loginUsuarioService(data) {
     token,
     usuario: {
       id: usuario.idUsuario,
+      idUsuario: usuario.idUsuario,
       nombre: usuario.usuNombre,
       apellido: usuario.usuApellido,
       correo: usuario.usuCorreo,
+      usuNombre: usuario.usuNombre,
+      usuApellido: usuario.usuApellido,
+      usuDocumento: usuario.usuDocumento,
+      usuTelefono: usuario.usuTelefono,
+      usuCorreo: usuario.usuCorreo,
+      usuDireccion: usuario.usuDireccion,
       rol: usuario.rol?.rolNombre,
     },
   };
@@ -156,9 +163,16 @@ export async function registerUsuarioService(data, solicitante = null) {
     token,
     usuario: {
       id: nuevoUsuario.idUsuario,
+      idUsuario: nuevoUsuario.idUsuario,
       nombre: nuevoUsuario.usuNombre,
       apellido: nuevoUsuario.usuApellido,
       correo: nuevoUsuario.usuCorreo,
+      usuNombre: nuevoUsuario.usuNombre,
+      usuApellido: nuevoUsuario.usuApellido,
+      usuDocumento: nuevoUsuario.usuDocumento,
+      usuTelefono: nuevoUsuario.usuTelefono,
+      usuCorreo: nuevoUsuario.usuCorreo,
+      usuDireccion: nuevoUsuario.usuDireccion,
       rol: nuevoUsuario.rol?.rolNombre,
     },
   };
