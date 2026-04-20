@@ -72,7 +72,14 @@ export async function registrarCitaService({ citMotivo, citFecha, citEstado = "P
     await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
 
     return db.cita.create({
-        data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
+        data: { 
+            citMotivo, 
+            citFecha: citaFechaDate, 
+            citEstado, 
+            citObservaciones, 
+            citDuracion, 
+            usuario: { connect: { idUsuario: fkIdUsuario } }
+        },
     });
 }
 
@@ -241,7 +248,14 @@ export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, 
     await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
 
     return prisma.cita.create({
-        data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
+        data: { 
+            citMotivo, 
+            citFecha: citaFechaDate, 
+            citEstado, 
+            citObservaciones, 
+            citDuracion, 
+            usuario: { connect: { idUsuario: parseInt(fkIdUsuario) } }
+        },
     });
 }
 
@@ -279,9 +293,9 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
                 facSubtotal: subtotal.toFixed(2),
                 facIva: iva.toFixed(2),
                 facTotal: total,
-                fkIdUsuario: cita.fkIdUsuario,
-                fkIdCarrito: carrito.idCarrito,
-                fkIdCita: parseInt(idCita),
+                usuario: { connect: { idUsuario: cita.fkIdUsuario } },
+                carrito: { connect: { idCarrito: carrito.idCarrito } },
+                cita:    { connect: { idCita: parseInt(idCita) } },
             },
         });
 

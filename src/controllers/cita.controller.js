@@ -87,7 +87,7 @@ export const registrarCita = async (req, res) => {
       if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
         const nuevoCarrito = await tx.carrito.create({
           data: {
-            fkIdUsuario,
+            usuario: { connect: { idUsuario: fkIdUsuario } },
             carEstado: "Completado",
             carFechaCreacion: new Date()
           }
@@ -108,9 +108,9 @@ export const registrarCita = async (req, res) => {
             facSubtotal: subtotal.toFixed(2),
             facIva: iva.toFixed(2),
             facTotal: total,
-            fkIdUsuario: fkIdUsuario,
-            fkIdCarrito: nuevoCarrito.idCarrito,
-            fkIdCita: nuevaCita.idCita,
+            usuario: { connect: { idUsuario: fkIdUsuario } },
+            carrito: { connect: { idCarrito: nuevoCarrito.idCarrito } },
+            cita:    { connect: { idCita: nuevaCita.idCita } },
           }
         });
 

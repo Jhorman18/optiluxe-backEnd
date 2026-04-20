@@ -1,13 +1,15 @@
-import { PrismaClient } from './src/generated/prisma/index.js';
-const prisma = new PrismaClient();
 
-async function checkData() {
-    const categories = await prisma.categoria.findMany();
-    console.log("📂 TABLA CATEGORIA:", JSON.stringify(categories, null, 2));
+import prisma from "./src/config/prisma.js";
 
-    const productSample = await prisma.producto.findMany({ take: 5, include: { categoria: true } });
-    console.log("📦 MUESTRA PRODUCTOS:", JSON.stringify(productSample, null, 2));
+async function check() {
+  console.log("Factura fields:", Object.keys(prisma.factura));
+  // This won't give us the data structure for create, but we can try something else
+  try {
+    const fields = await prisma.factura.findFirst();
+    console.log("Sample factura:", fields);
+  } catch (e) {
+    console.error("Error fetching factura:", e.message);
+  }
 }
 
-checkData()
-    .finally(() => prisma.$disconnect());
+check().then(() => process.exit());

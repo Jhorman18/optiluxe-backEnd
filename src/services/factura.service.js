@@ -1,17 +1,16 @@
 import prisma from "../config/prisma.js";
 
 /**
- * Genera el siguiente número de factura secuencial: FAC-YYYY-XXXXX
- * Se ejecuta dentro de una transacción para evitar duplicados en concurrencia.
+ * Genera el siguiente número de factura secuencial: FAC-[CIT]-YYYY-XXXXX
+ * @param {Object} tx - Instancia de Prisma (para transacciones)
+ * @param {Boolean} isCita - Si es una factura de cita para aplicar prefijo FAC-CIT
  */
-async function _generarSiguienteNumero(tx = prisma) {
+async function _generarSiguienteNumero(tx = prisma, isCita = false) {
   const currentYear = new Date().getFullYear();
-  const prefix = `FAC-${currentYear}-`;
+  const basePrefix = isCita ? `FAC-CIT-${currentYear}-` : `FAC-${currentYear}-`;
 
-  // Bloqueo pesimista: findFirst con orderBy dentro de la transacción garantiza
-  // que dos requests simultáneos no lean el mismo "último número".
   const lastFactura = await tx.factura.findFirst({
-    where: { facNumero: { startsWith: prefix } },
+    where: { facNumero: { startsWith: basePrefix } },
     orderBy: { facNumero: "desc" },
   });
 
@@ -22,7 +21,7 @@ async function _generarSiguienteNumero(tx = prisma) {
     if (!isNaN(lastSequence)) nextSequence = lastSequence + 1;
   }
 
-  return `${prefix}${nextSequence.toString().padStart(5, "0")}`;
+  return `${basePrefix}${nextSequence.toString().padStart(5, "0")}`;
 }
 
 export const getAllFacturas = async (filtros) => {
@@ -101,7 +100,8 @@ export const getFacturaById = async (id) => {
         include: {
           carrito_producto: {
             include: { producto: true }
-          }
+          },
+          usuario: true
         }
       },
       cita: true
@@ -133,23 +133,108 @@ export const getFacturaById = async (id) => {
 };
 
 export const createFactura = async (data) => {
-  const { facSubtotal, facIva, facTotal, fkIdUsuario, fkIdCarrito, fkIdCita, fkIdProducto, facNumero, ...rest } = data;
+  const { 
+    facSubtotal, 
+    facIva, 
+    facTotal, 
+    fkIdUsuario, 
+    fkIdCarrito, 
+    fkIdCita, 
+    facNumero, 
+    items, // Si se pasan [{ idProducto, cantidad }], calculamos totales y creamos carrito
+    ...rest 
+  } = data;
 
   const nueva = await prisma.$transaction(async (tx) => {
-    const nFactura = facNumero || await _generarSiguienteNumero(tx);
+    let finalSubtotal = parseFloat(facSubtotal) || 0;
+    let finalIva = parseFloat(facIva) || 0;
+    let finalTotal = parseFloat(facTotal) || 0;
+    let targetCarritoId = fkIdCarrito ? parseInt(fkIdCarrito) : null;
+
+    // Si se proporcionan items, creamos un carrito y calculamos totales automáticamente
+    if (items && Array.isArray(items) && items.length > 0) {
+      if (!fkIdUsuario) throw new Error("Para crear una factura con productos se requiere un cliente (fkIdUsuario).");
+
+      const nuevoCarrito = await tx.carrito.create({
+        data: {
+          usuario: { connect: { idUsuario: parseInt(fkIdUsuario) } },
+          carEstado: "COMPLETADO",
+          carFechaCreacion: new Date()
+        }
+      });
+      targetCarritoId = nuevoCarrito.idCarrito;
+
+      // Consolidamos items por producto para evitar errores de constraint único (fkIdCarrito, fkIdProducto)
+      const groupedItemsMap = new Map();
+      for (const item of items) {
+        const id = parseInt(item.idProducto);
+        const qty = parseInt(item.cantidad);
+        if (groupedItemsMap.has(id)) {
+          groupedItemsMap.get(id).cantidad += qty;
+        } else {
+          groupedItemsMap.set(id, { idProducto: id, cantidad: qty });
+        }
+      }
+      const consolidatedItems = Array.from(groupedItemsMap.values());
+
+      // Optimizamos: Obtenemos todos los productos involucrados en una sola consulta
+      const productIds = consolidatedItems.map(item => item.idProducto);
+      const dbProductsList = await tx.producto.findMany({
+        where: { idProducto: { in: productIds } }
+      });
+
+      const dbProductsMap = new Map(dbProductsList.map(p => [p.idProducto, p]));
+      let subtotalAcumulado = 0;
+
+      for (const item of consolidatedItems) {
+        const prodId = item.idProducto;
+        const prod = dbProductsMap.get(prodId);
+
+        if (!prod) throw new Error(`Producto ID ${prodId} no encontrado`);
+        if (prod.proStock < item.cantidad) {
+          throw new Error(`Stock insuficiente para: ${prod.proNombre}. Stock disponible: ${prod.proStock}`);
+        }
+
+        const price = Number(prod.proPrecio);
+        subtotalAcumulado += price * item.cantidad;
+
+        await tx.carrito_producto.create({
+          data: {
+            carrito: { connect: { idCarrito: targetCarritoId } },
+            producto: { connect: { idProducto: prodId } },
+            cantidad: item.cantidad
+          }
+        });
+
+        await tx.producto.update({
+          where: { idProducto: prodId },
+          data: { proStock: { decrement: item.cantidad } }
+        });
+      }
+
+      finalSubtotal = subtotalAcumulado;
+      finalIva = finalSubtotal * 0.19;
+      finalTotal = finalSubtotal + finalIva;
+    }
+
+    // Determinamos si es una factura de cita/servicio o de productos para el prefijo
+    const isServiceInvoice = !items || !Array.isArray(items) || items.length === 0;
+    const nFactura = facNumero || await _generarSiguienteNumero(tx, isServiceInvoice);
+
     return tx.factura.create({
       data: {
         ...rest,
         facNumero: nFactura,
-        facSubtotal: parseFloat(facSubtotal),
-        facIva: parseFloat(facIva),
-        facTotal: parseFloat(facTotal),
-        fkIdUsuario: fkIdUsuario ? parseInt(fkIdUsuario) : null,
-        fkIdCarrito: fkIdCarrito ? parseInt(fkIdCarrito) : null,
-        fkIdCita: fkIdCita ? parseInt(fkIdCita) : null,
-        fkIdProducto: fkIdProducto ? parseInt(fkIdProducto) : null,
+        facSubtotal: finalSubtotal,
+        facIva: finalIva,
+        facTotal: finalTotal,
+        usuario: fkIdUsuario ? { connect: { idUsuario: parseInt(fkIdUsuario) } } : undefined,
+        carrito: targetCarritoId ? { connect: { idCarrito: targetCarritoId } } : undefined,
+        cita: fkIdCita ? { connect: { idCita: parseInt(fkIdCita) } } : undefined,
       },
     });
+  }, {
+    timeout: 20000 // Aumentamos el timeout a 20 segundos para evitar errores en servidores lentos
   });
 
   return await getFacturaById(nueva.idFactura);
@@ -162,8 +247,8 @@ export const updateFactura = async (id, data) => {
   if (facSubtotal !== undefined) updateData.facSubtotal = parseFloat(facSubtotal);
   if (facIva !== undefined) updateData.facIva = parseFloat(facIva);
   if (facTotal !== undefined) updateData.facTotal = parseFloat(facTotal);
-  if (fkIdUsuario !== undefined) updateData.fkIdUsuario = fkIdUsuario ? parseInt(fkIdUsuario) : null;
-  if (fkIdCarrito !== undefined) updateData.fkIdCarrito = fkIdCarrito ? parseInt(fkIdCarrito) : null;
+  if (fkIdUsuario !== undefined) updateData.usuario = fkIdUsuario ? { connect: { idUsuario: parseInt(fkIdUsuario) } } : { disconnect: true };
+  if (fkIdCarrito !== undefined) updateData.carrito = fkIdCarrito ? { connect: { idCarrito: parseInt(fkIdCarrito) } } : { disconnect: true };
 
   const actualizada = await prisma.factura.update({
     where: { idFactura: parseInt(id) },

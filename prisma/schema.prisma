@@ -23,10 +23,10 @@ model usuario {
   usuResetTokenExpiry DateTime?
   carrito             carrito[]
   cita                cita[]
+  factura             factura[]
   log_acceso          log_acceso[]
   notificacion        notificacion[]
   rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
-  factura             factura[]
   webpush_suscripcion webpush_suscripcion[]
 }
 
@@ -82,20 +82,20 @@ model factura {
   idFactura          Int        @id @default(autoincrement())
   facNumero          String     @unique @db.VarChar(50)
   facFecha           DateTime   @default(now())
-  facConcepto        String     @db.Text
+  facConcepto        String
   facCondiciones     String?    @db.VarChar(300)
   facSubtotal        Decimal    @db.Decimal(10, 2)
   facIva             Decimal    @db.Decimal(10, 2)
   facTotal           Decimal    @db.Decimal(10, 2)
-  facEstado          String     @default("PAGADA") @db.VarChar(20)
-  facMotivoAnulacion String?    @db.Text
   fkIdCarrito        Int?
   fkIdCita           Int?
+  facEstado          String     @default("PAGADA") @db.VarChar(20)
+  facMotivoAnulacion String?
   fkIdUsuario        Int?
-  usuario            usuario?   @relation(fields: [fkIdUsuario], references: [idUsuario])
   encuesta           encuesta[]
   carrito            carrito?   @relation(fields: [fkIdCarrito], references: [idCarrito])
   cita               cita?      @relation(fields: [fkIdCita], references: [idCita])
+  usuario            usuario?   @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
 
 model cita {
@@ -154,8 +154,8 @@ model respuesta_encuesta {
 model notificacion {
   idNotificacion     Int      @id @default(autoincrement())
   notTitulo          String   @db.VarChar(100)
-  notMensaje         String   @db.Text
-  notCanal           String   @db.VarChar(50) @default("Email")
+  notMensaje         String
+  notCanal           String   @default("Email") @db.VarChar(50)
   notEstado          String   @db.VarChar(20)
   notLeida           Boolean  @default(false)
   notFechaProgramada DateTime
@@ -186,11 +186,11 @@ model webpush_suscripcion {
 }
 
 model contacto {
-  idContacto     Int      @id @default(autoincrement())
-  conNombre      String   @db.VarChar(200)
-  conCorreo      String   @db.VarChar(255)
-  conTelefono    String?  @db.VarChar(50)
-  conMensaje     String   @db.Text
-  conFechaEnvio  DateTime @default(now())
-  conEstado      String   @default("PENDIENTE") @db.VarChar(50)
+  idContacto    Int      @id @default(autoincrement())
+  conNombre     String   @db.VarChar(100)
+  conCorreo     String   @db.VarChar(150)
+  conTelefono   String?  @db.VarChar(20)
+  conMensaje    String
+  conFechaEnvio DateTime @default(now())
+  conEstado     String   @default("PENDIENTE") @db.VarChar(20)
 }

@@ -92,7 +92,7 @@ export async function crearProductoService(data) {
     data: {
       proNombre: data.nombre,
       proDescripcion: data.descripcion,
-      fkIdCategoria: parseInt(data.idCategoria),
+      categoria: { connect: { idCategoria: parseInt(data.idCategoria) } },
       proPrecio: parseFloat(data.precio),
       proStock: parseInt(data.stock),
       proEstado: "ACTIVO",
@@ -108,7 +108,7 @@ export async function actualizarProductoService(id, data) {
     data: {
       proNombre: data.nombre,
       proDescripcion: data.descripcion,
-      fkIdCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      categoria: data.idCategoria ? { connect: { idCategoria: parseInt(data.idCategoria) } } : undefined,
       proPrecio: data.precio ? parseFloat(data.precio) : undefined,
       proStock: data.stock !== undefined ? parseInt(data.stock) : undefined,
       proImagen: data.imagen,

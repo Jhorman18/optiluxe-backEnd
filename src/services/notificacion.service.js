@@ -14,7 +14,7 @@ export async function crearNotificacionAutomatica(idUsuario, titulo, mensaje, en
             notCanal: enviarCorreo ? "EMAIL_Y_PUSH" : "PUSH",
             notEstado: "Enviada",
             notFechaProgramada: new Date(),
-            fkIdUsuario: idUsuario,
+            usuario: { connect: { idUsuario: idUsuario } },
         },
         include: { usuario: true },
     });

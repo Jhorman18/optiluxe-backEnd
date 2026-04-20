@@ -132,7 +132,7 @@ export async function registerUsuarioService(data, solicitante = null) {
       usuTelefono: usuTelefono || null,
       usuDireccion: usuDireccion || null,
       usuEstado: "ACTIVO",
-      fkIdRol: rolBD.idRol,
+      rol: { connect: { idRol: rolBD.idRol } },
     },
     include: { rol: true },
   });

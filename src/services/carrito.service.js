@@ -43,7 +43,7 @@ async function getOrCreateCarrito(idUsuario) {
 
     if (!carrito) {
         carrito = await prisma.carrito.create({
-            data: { carEstado: "ACTIVO", fkIdUsuario: idUsuario },
+            data: { carEstado: "ACTIVO", usuario: { connect: { idUsuario: idUsuario } } },
             include: { carrito_producto: { include: { producto: true } }, usuario: true },
         });
     }
@@ -79,7 +79,11 @@ export async function agregarAlCarritoService(idUsuario, idProducto, cantidad = 
 
     await prisma.carrito_producto.upsert({
         where: { fkIdCarrito_fkIdProducto: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto } },
-        create: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto, cantidad },
+        create: { 
+            carrito: { connect: { idCarrito: carrito.idCarrito } }, 
+            producto: { connect: { idProducto: idProducto } }, 
+            cantidad 
+        },
         update: { cantidad: cantidadFinal },
     });
 
@@ -166,8 +170,8 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
                 facSubtotal:   formatted.subtotal,
                 facIva:        formatted.iva,
                 facTotal:      formatted.total,
-                fkIdUsuario:   idUsuario,
-                fkIdCarrito:   carrito.idCarrito,
+                usuario:     { connect: { idUsuario: idUsuario } },
+                carrito:     { connect: { idCarrito: carrito.idCarrito } },
             },
         });
 
