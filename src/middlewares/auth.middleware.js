@@ -4,7 +4,8 @@ import { HttpError } from "../utils/httpErrors.js";
 
 
 export async function authMiddleware(req, res, next) {
-  const token = req.cookies?.token;
+  const token = req.cookies?.token
+    ?? req.headers.authorization?.replace("Bearer ", "");
 
   if (!token) {
     return next(new HttpError("Token requerido", 401));
@@ -55,7 +56,8 @@ export function isStaff(req, res, next) {
 
 // Middleware opcional: si hay token lo verifica y setea req.usuario, si no hay continúa como anónimo
 export async function optionalAuthMiddleware(req, res, next) {
-  const token = req.cookies?.token;
+  const token = req.cookies?.token
+    ?? req.headers.authorization?.replace("Bearer ", "");
   if (!token) return next();
 
   try {
