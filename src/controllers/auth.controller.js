@@ -12,10 +12,11 @@ export const login = async (req, res, next) => {
   try {
     const data = await loginUsuarioService(req.body);
 
+    const isProd = process.env.NODE_ENV === "production";
     res.cookie("token", data.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "strict",
       maxAge: 2 * 60 * 60 * 1000,
     });
 
@@ -34,10 +35,11 @@ export const register = async (req, res, next) => {
     const data = await registerUsuarioService(req.body, solicitante);
 
     if (data.token) {
+      const isProd = process.env.NODE_ENV === "production";
       res.cookie("token", data.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: isProd,
+        sameSite: isProd ? "none" : "strict",
         maxAge: 2 * 60 * 60 * 1000,
       });
     }
@@ -79,10 +81,11 @@ export const me = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
   try {
+    const isProd = process.env.NODE_ENV === "production";
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "strict",
     });
 
     return res.status(200).json({ message: "Sesión cerrada correctamente" });
