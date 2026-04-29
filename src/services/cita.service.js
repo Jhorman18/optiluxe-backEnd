@@ -57,11 +57,15 @@ export async function getHorariosOcupadosService(fechaStr) {
     });
 }
 
+// Colombia es UTC-5; las fechas se almacenan como "hora local como si fuera UTC"
+const COLOMBIA_OFFSET_MS = 5 * 60 * 60 * 1000;
+const ahoraEnSistema = () => new Date(Date.now() - COLOMBIA_OFFSET_MS);
+
 export async function registrarCitaService({ citMotivo, citFecha, citEstado = "PENDIENTE", citObservaciones, citDuracion = 30, fkIdUsuario }, tx = null) {
     const db = tx || prisma;
     const citaFechaDate = new Date(citFecha);
 
-    if (citaFechaDate <= new Date()) {
+    if (citaFechaDate <= ahoraEnSistema()) {
         const err = new Error("No puedes agendar una cita en el pasado.");
         err.status = 400;
         throw err;
@@ -202,18 +206,28 @@ export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, 
         };
     }
 
-    return prisma.cita.findMany({
-        where,
-        orderBy: { citFecha: "desc" },
-        include: {
-            usuario: {
-                select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
+    const [citas, servicios] = await Promise.all([
+        prisma.cita.findMany({
+            where,
+            orderBy: { citFecha: "desc" },
+            include: {
+                usuario: {
+                    select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
+                },
+                encuesta: { include: { factura: true } },
+                factura: true,
+                historia_clinica: true,
             },
-            encuesta: { include: { factura: true } },
-            factura: true,
-            historia_clinica: true,
-        },
-    });
+        }),
+        prisma.servicio.findMany({ select: { serNombre: true, serPrecio: true } }),
+    ]);
+
+    const precioMap = new Map(servicios.map(s => [s.serNombre.toLowerCase(), parseFloat(s.serPrecio)]));
+
+    return citas.map(cita => ({
+        ...cita,
+        serPrecio: precioMap.get(cita.citMotivo?.toLowerCase()) ?? null,
+    }));
 }
 
 export async function actualizarEstadoCitaService(idCita, nuevoEstado) {
@@ -260,7 +274,7 @@ export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, 
 
     const citaFechaDate = new Date(citFecha);
 
-    if (citaFechaDate <= new Date()) {
+    if (citaFechaDate <= ahoraEnSistema()) {
         const err = new Error("No se puede agendar una cita en el pasado.");
         err.status = 400;
         throw err;
