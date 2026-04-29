@@ -77,15 +77,20 @@ export async function agregarAlCarritoService(idUsuario, idProducto, cantidad = 
         throw new HttpError(`Solo hay ${producto.proStock} unidades disponibles`, 400);
     }
 
-    await prisma.carrito_producto.upsert({
-        where: { fkIdCarrito_fkIdProducto: { fkIdCarrito: carrito.idCarrito, fkIdProducto: idProducto } },
-        create: { 
-            carrito: { connect: { idCarrito: carrito.idCarrito } }, 
-            producto: { connect: { idProducto: idProducto } }, 
-            cantidad 
-        },
-        update: { cantidad: cantidadFinal },
-    });
+    if (itemExistente) {
+        await prisma.carrito_producto.update({
+            where: { idCarritoProducto: itemExistente.idCarritoProducto },
+            data: { cantidad: cantidadFinal },
+        });
+    } else {
+        await prisma.carrito_producto.create({
+            data: {
+                carrito:  { connect: { idCarrito: carrito.idCarrito } },
+                producto: { connect: { idProducto: idProducto } },
+                cantidad,
+            },
+        });
+    }
 
     return getCarritoService(idUsuario);
 }
