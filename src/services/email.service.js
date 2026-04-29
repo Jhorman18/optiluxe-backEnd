@@ -53,63 +53,99 @@ export const enviarFacturaEmail = async (factura) => {
   try {
     console.log("📧 Entrando a enviarFacturaEmail...");
 
-    const usuario = factura.carrito.usuario;
-    const productos = factura.carrito.carrito_producto;
+    // Fallback de usuario: Priorizar el del carrito (si existe) o el de la factura
+    const usuario = factura.carrito?.usuario || factura.usuario;
+    if (!usuario) throw new Error("No se encontró información de usuario para enviar el correo.");
 
-    const productosHTML = productos
-      .map((item) => {
-        const subtotal = Number(item.producto.proPrecio) * item.cantidad;
-
-        return `
-          <tr>
-            <td>${item.producto.proNombre}</td>
-            <td>${item.cantidad}</td>
-            <td>$${item.producto.proPrecio}</td>
-            <td>$${subtotal}</td>
-          </tr>
-        `;
-      })
-      .join("");
+    // Generar HTML de items: Si hay carrito usa productos, si no, usa el concepto de la factura
+    let productosHTML = "";
+    if (factura.carrito && factura.carrito.carrito_producto?.length > 0) {
+      productosHTML = factura.carrito.carrito_producto
+        .map((item) => {
+          const subtotal = Number(item.producto.proPrecio) * item.cantidad;
+          return `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #eee;">${item.producto.proNombre}</td>
+              <td style="padding: 10px; border: 1px solid #eee; text-align: center;">${item.cantidad}</td>
+              <td style="padding: 10px; border: 1px solid #eee;">$${Number(item.producto.proPrecio).toLocaleString("es-CO")}</td>
+              <td style="padding: 10px; border: 1px solid #eee;">$${subtotal.toLocaleString("es-CO")}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    } else {
+      // Caso de servicio manual o catálogo sin carrito
+      productosHTML = `
+        <tr>
+          <td style="padding: 10px; border: 1px solid #eee;">${factura.facConcepto}</td>
+          <td style="padding: 10px; border: 1px solid #eee; text-align: center;">1</td>
+          <td style="padding: 10px; border: 1px solid #eee;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
+          <td style="padding: 10px; border: 1px solid #eee;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
+        </tr>
+      `;
+    }
 
     const html = `
-      <h2>Factura de Compra - Optiluxe 👓</h2>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+        <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-bottom: 3px solid #3b82f6;">
+          <img src="cid:logoOptiLuxe" alt="OptiLuxe" style="max-width: 150px;">
+          <h2 style="margin: 20px 0 0 0; color: #1e293b;">Comprobante de Venta</h2>
+          <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">Factura No. ${factura.facNumero}</p>
+        </div>
 
-      <p><strong>Cliente:</strong> ${usuario.usuNombre} ${usuario.usuApellido}</p>
-      <p><strong>Documento:</strong> ${usuario.usuDocumento}</p>
-      <p><strong>Correo:</strong> ${usuario.usuCorreo}</p>
-      <p><strong>Dirección:</strong> ${usuario.usuDireccion}</p>
+        <div style="padding: 30px;">
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #3b82f6; margin-bottom: 15px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Detalles del Cliente</h3>
+            <p style="margin: 5px 0;"><strong>Nombre:</strong> ${usuario.usuNombre} ${usuario.usuApellido}</p>
+            <p style="margin: 5px 0;"><strong>Documento:</strong> ${usuario.usuDocumento}</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${usuario.usuCorreo}</p>
+            ${usuario.usuDireccion ? `<p style="margin: 5px 0;"><strong>Dirección:</strong> ${usuario.usuDireccion}</p>` : ""}
+          </div>
 
-      <hr/>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+              <tr style="background-color: #f1f5f9;">
+                <th style="padding: 12px; border: 1px solid #eee; text-align: left; font-size: 12px; text-transform: uppercase;">Descripción</th>
+                <th style="padding: 12px; border: 1px solid #eee; text-align: center; font-size: 12px; text-transform: uppercase;">Cant.</th>
+                <th style="padding: 12px; border: 1px solid #eee; text-align: left; font-size: 12px; text-transform: uppercase;">Precio</th>
+                <th style="padding: 12px; border: 1px solid #eee; text-align: left; font-size: 12px; text-transform: uppercase;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${productosHTML}
+            </tbody>
+          </table>
 
-      <h3>Detalle de productos</h3>
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin-left: auto; width: 60%;">
+            <table style="width: 100%;">
+              <tr>
+                <td style="padding: 5px 0; color: #64748b;">Subtotal:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: bold;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; color: #64748b;">IVA (19%):</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: bold;">$${Number(factura.facIva).toLocaleString("es-CO")}</td>
+              </tr>
+              <tr style="border-top: 2px solid #3b82f6;">
+                <td style="padding: 15px 0 5px 0; font-size: 18px; color: #1e293b; font-weight: 800;">TOTAL:</td>
+                <td style="padding: 15px 0 5px 0; text-align: right; font-size: 18px; color: #3b82f6; font-weight: 800;">$${Number(factura.facTotal).toLocaleString("es-CO")}</td>
+              </tr>
+            </table>
+          </div>
 
-      <table border="1" cellpadding="5" cellspacing="0">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${productosHTML}
-        </tbody>
-      </table>
+          <div style="margin-top: 40px; text-align: center; color: #94a3b8; font-size: 12px;">
+            <p>Gracias por confiar en <strong>OptiLuxe</strong>. Tu visión es nuestra prioridad.</p>
+          </div>
 
-      <h3>Subtotal: $${factura.facSubtotal}</h3>
-      <h3>IVA: $${factura.facIva}</h3>
-      <h2>Total: $${factura.facTotal}</h2>
-
-      <p>Gracias por confiar en Optiluxe.</p>
-
-      ${contactoHTML}
+          ${contactoHTML}
+        </div>
+      </div>
     `;
 
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: usuario.usuCorreo,
-      subject: `Factura ${factura.facNumero} - Optiluxe`,
+      subject: `Comprobante de Venta ${factura.facNumero} - OptiLuxe`,
       html,
       attachments: [logoAttachment],
     });
@@ -310,3 +346,70 @@ export const enviarNotificacionGeneralEmail = async (correo, titulo, mensaje, no
     console.error("❌ Error enviando correo de notificación general:", error);
   }
 };
+
+/**
+ * Envía una respuesta a un mensaje de contacto
+ * @param {string} correo - Email del cliente
+ * @param {string} nombre - Nombre del cliente
+ * @param {string} mensajeOriginal - El mensaje que envió el cliente
+ * @param {string} respuestaAdmin - La respuesta redactada por el administrador
+ */
+export const enviarRespuestaContactoEmail = async (correo, nombre, mensajeOriginal, respuestaAdmin) => {
+  try {
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+
+        <div style="background-color: #ffffff; padding: 30px; text-align: center;">
+          <img src="cid:logoOptiLuxe" alt="OptiLuxe Logo" style="max-width:160px;">
+        </div>
+
+        <div style="height: 4px; background-color: #2563eb;"></div>
+
+        <div style="padding: 30px; color: #333;">
+
+          <h2 style="color: #1e40af;">Hola ${nombre},</h2>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #4b5563;">
+            Gracias por contactar con <strong>OptiLuxe</strong>. Hemos revisado tu consulta y aquí tienes nuestra respuesta:
+          </p>
+
+          <div style="margin: 25px 0; padding: 25px; background-color: #eff6ff; border-radius: 12px; border: 1px solid #dbeafe;">
+            <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #1e3a8a; white-space: pre-wrap;">${respuestaAdmin}</p>
+          </div>
+
+          <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #f3f4f6;">
+            <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; color: #9ca3af; uppercase; tracking-wider;">Tu mensaje original:</p>
+            <p style="margin: 0; font-size: 14px; color: #6b7280; font-style: italic;">"${mensajeOriginal}"</p>
+          </div>
+
+          <p style="margin-top: 30px; font-size: 15px; color: #4b5563;">
+            Si tienes más preguntas, no dudes en responder a este correo o contactarnos por WhatsApp.
+          </p>
+
+          ${contactoHTML}
+
+          <p style="margin-top: 40px; font-size: 14px; color: #9ca3af; text-align: center;">
+            © ${new Date().getFullYear()} OptiLuxe - Visión Clara
+          </p>
+
+        </div>
+      </div>
+    </div>
+    `;
+
+    await transporter.sendMail({
+      from: `OptiLuxe <${process.env.EMAIL_USER}>`,
+      to: correo,
+      subject: "Respuesta a tu consulta - OptiLuxe",
+      html,
+      attachments: [logoAttachment],
+    });
+
+    console.log(`✅ Respuesta de contacto enviada a ${correo}`);
+
+  } catch (error) {
+    console.error("❌ Error enviando respuesta de contacto:", error);
+    throw error;
+  }
+};

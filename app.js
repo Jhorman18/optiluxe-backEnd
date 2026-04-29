@@ -15,6 +15,9 @@ import notificacionRoutes from "./src/routes/notificacion.routes.js";
 import webpushRoutes from "./src/routes/webpush.routes.js";
 import categoriaRoutes from "./src/routes/categoria.routes.js";
 import historiaClinicaRoutes from "./src/routes/historiaClinica.routes.js";
+import contactoRoutes from "./src/routes/contacto.routes.js";
+import reporteRoutes from "./src/routes/reporte.routes.js";
+import servicioRoutes from "./src/routes/servicio.routes.js";
 
 const app = express();
 
@@ -35,9 +38,13 @@ app.use("/api/cita", citaRoutes);
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/encuesta", encuestaRoutes);
 app.use("/api/notificacion", notificacionRoutes);
+app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/webpush", webpushRoutes);
 app.use("/api/categoria", categoriaRoutes);
 app.use("/api/historia-clinica", historiaClinicaRoutes);
+app.use("/api/contacto", contactoRoutes);
+app.use("/api/reporte", reporteRoutes);
+app.use("/api/servicio", servicioRoutes);
 
 
 
@@ -48,9 +55,15 @@ app.use((req, res) => {
 
 
 app.use((err, req, res, next) => {
-  console.error(err);
-
   const status = err.status || 500;
+
+  // Solo logueamos el error completo si es un 500 (Error del servidor)
+  if (status >= 500) {
+    console.error("Internal Server Error:", err);
+  } else {
+    // Para errores 4xx (Cliente), logueamos algo más discreto
+    console.warn(`Client Error (${status}) at ${req.method} ${req.url}: ${err.message}`);
+  }
 
   const message =
     status >= 500

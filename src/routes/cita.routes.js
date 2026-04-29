@@ -12,7 +12,7 @@ import {
   crearCitaAdmin,
   registrarPagoCita,
 } from "../controllers/cita.controller.js";
-import { authMiddleware, isAdmin } from "../middlewares/auth.middleware.js";
+import { authMiddleware, isAdmin, isStaff } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -24,11 +24,11 @@ router.get("/proximas", authMiddleware, getProximasCitas);
 router.get("/estadisticas", authMiddleware, getEstadisticasCitas);
 
 // Autenticados: panel admin — gestión completa de citas
-router.post("/admin", authMiddleware, isAdmin, crearCitaAdmin);
+router.post("/admin", authMiddleware, isStaff, crearCitaAdmin);
 router.get("/admin/todas", authMiddleware, getAllCitasAdmin);
 router.patch("/:id/estado", authMiddleware, actualizarEstadoCita);
 router.patch("/:id/reprogramar", authMiddleware, reprogramarCita);
-router.post("/:id/pago", authMiddleware, isAdmin, registrarPagoCita);
+router.post("/:id/pago", authMiddleware, isStaff, registrarPagoCita);
 
 // Autenticados: panel del cliente
 router.get("/mis-citas", authMiddleware, getMisCitas);

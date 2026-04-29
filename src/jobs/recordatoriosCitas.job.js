@@ -15,7 +15,7 @@ export function iniciarJobRecordatorioCitas() {
         const citas = await prisma.cita.findMany({
             where: {
                 citFecha: { gte: en23h, lte: en25h },
-                citEstado: { not: "Cancelada" },
+                citEstado: { not: "CANCELADA" },
             },
             include: { usuario: true },
         });

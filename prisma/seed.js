@@ -60,13 +60,30 @@ const productos = [
 ];
 
 async function main() {
+  console.log("Cargando categorías para referenciarlas...");
+  const categoriasDB = await prisma.categoria.findMany();
+  const catMap = Object.fromEntries(categoriasDB.map(c => [c.catNombre, c.idCategoria]));
+
   console.log("Insertando productos...");
 
-  for (const producto of productos) {
-    await prisma.producto.create({ data: producto });
+  for (const p of productos) {
+    const { proCategoria, ...rest } = p;
+    const idCat = catMap[proCategoria];
+
+    if (!idCat) {
+      console.warn(`  ⚠ Categoría no encontrada: ${proCategoria}. Saltando producto ${p.proNombre}`);
+      continue;
+    }
+
+    await prisma.producto.create({
+      data: {
+        ...rest,
+        fkIdCategoria: idCat
+      }
+    });
   }
 
-  console.log(`${productos.length} productos insertados correctamente.`);
+  console.log("Productos insertados correctamente.");
 }
 
 main()

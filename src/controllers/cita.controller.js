@@ -71,25 +71,23 @@ export const registrarCita = async (req, res) => {
     }
 
     const resultado = await prisma.$transaction(async (tx) => {
-
-      const nuevaCita = await tx.cita.create({
-        data: {
-          citFecha: new Date(citFecha),
-          citMotivo,
-          citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "Confirmada" : (citEstado || "Pendiente"),
-          citObservaciones,
-          fkIdUsuario,
-        },
-      });
+      // Usar el servicio para validar y crear la cita respetando horarios y disponibilidad
+      const nuevaCita = await citaService.registrarCitaService({
+        citFecha,
+        citMotivo,
+        citEstado: (pago && pago.metodo !== 'EFECTIVO' && pago.estado === 'Aprobado') ? "CONFIRMADA" : (citEstado || "PENDIENTE"),
+        citObservaciones,
+        fkIdUsuario,
+        citDuracion: 30 // Opcional: podrías recibirlo del body
+      }, tx);
 
       let nuevaFactura = null;
       let nuevaEncuesta = null;
 
       if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
-
         const nuevoCarrito = await tx.carrito.create({
           data: {
-            fkIdUsuario,
+            usuario: { connect: { idUsuario: fkIdUsuario } },
             carEstado: "Completado",
             carFechaCreacion: new Date()
           }
@@ -110,22 +108,14 @@ export const registrarCita = async (req, res) => {
             facSubtotal: subtotal.toFixed(2),
             facIva: iva.toFixed(2),
             facTotal: total,
-            fkIdCarrito: nuevoCarrito.idCarrito,
-            fkIdCita: nuevaCita.idCita,
+            usuario: { connect: { idUsuario: fkIdUsuario } },
+            carrito: { connect: { idCarrito: nuevoCarrito.idCarrito } },
+            cita:    { connect: { idCita: nuevaCita.idCita } },
           }
         });
 
-        nuevaEncuesta = await tx.encuesta.create({
-          data: {
-            enFecha: new Date(),
-            enTipo: "Servicio Cita",
-            fkIdCita: nuevaCita.idCita,
-            fkIdFactura: nuevaFactura.idFactura
-          }
-        });
       }
-
-      return { cita: nuevaCita, factura: nuevaFactura, encuesta: nuevaEncuesta };
+      return { cita: nuevaCita, factura: nuevaFactura };
     });
 
     // Correo de confirmación
@@ -233,8 +223,8 @@ export const tieneCitaActiva = async (req, res, next) => {
  */
 export const getAllCitasAdmin = async (req, res, next) => {
   try {
-    const { estado, fechaDesde, fechaHasta, busqueda } = req.query;
-    const citas = await citaService.getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda });
+    const { estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario } = req.query;
+    const citas = await citaService.getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario });
     res.json(citas);
   } catch (error) {
     next(error);
@@ -292,15 +282,18 @@ export const registrarPagoCita = async (req, res, next) => {
       return res.status(400).json({ message: "Los campos monto y metodoPago son obligatorios." });
     }
 
-    const cita = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+    const { cita, factura } = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+
+    // Enviar correo de confirmación con la factura
+    enviarConfirmacionCitaEmail(cita, cita.usuario, factura);
 
     crearNotificacionAutomatica(
       cita.fkIdUsuario,
       "Pago registrado — Cita confirmada",
-      `Tu pago ha sido registrado exitosamente. Tu cita de ${cita.citMotivo} está confirmada. ¡Te esperamos!`
+      `Tu pago ha sido registrado exitosamente por un valor de $${Number(monto).toLocaleString("es-CO")}. Tu cita de ${cita.citMotivo} está confirmada.`
     ).catch(() => {});
 
-    return res.status(200).json({ message: "Pago registrado y cita en atención.", data: cita });
+    return res.status(200).json({ message: "Pago registrado y cita confirmada.", data: cita });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ message: error.message });
     next(error);

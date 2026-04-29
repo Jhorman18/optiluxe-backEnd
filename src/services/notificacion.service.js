@@ -11,10 +11,10 @@ export async function crearNotificacionAutomatica(idUsuario, titulo, mensaje, en
         data: {
             notTitulo: titulo,
             notMensaje: mensaje,
-            notCanal: enviarCorreo ? "EMAIL_Y_PUSH" : "SOLO_PUSH",
+            notCanal: enviarCorreo ? "EMAIL_Y_PUSH" : "PUSH",
             notEstado: "Enviada",
             notFechaProgramada: new Date(),
-            fkIdUsuario: idUsuario,
+            usuario: { connect: { idUsuario: idUsuario } },
         },
         include: { usuario: true },
     });

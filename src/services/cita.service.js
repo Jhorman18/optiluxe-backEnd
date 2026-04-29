@@ -57,10 +57,15 @@ export async function getHorariosOcupadosService(fechaStr) {
     });
 }
 
-export async function registrarCitaService({ citMotivo, citFecha, citEstado = "Pendiente", citObservaciones, citDuracion, fkIdUsuario }) {
+// Colombia es UTC-5; las fechas se almacenan como "hora local como si fuera UTC"
+const COLOMBIA_OFFSET_MS = 5 * 60 * 60 * 1000;
+const ahoraEnSistema = () => new Date(Date.now() - COLOMBIA_OFFSET_MS);
+
+export async function registrarCitaService({ citMotivo, citFecha, citEstado = "PENDIENTE", citObservaciones, citDuracion = 30, fkIdUsuario }, tx = null) {
+    const db = tx || prisma;
     const citaFechaDate = new Date(citFecha);
 
-    if (citaFechaDate <= new Date()) {
+    if (citaFechaDate <= ahoraEnSistema()) {
         const err = new Error("No puedes agendar una cita en el pasado.");
         err.status = 400;
         throw err;
@@ -70,8 +75,15 @@ export async function registrarCitaService({ citMotivo, citFecha, citEstado = "P
     validarHorario(inicioMin, citDuracion);
     await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
 
-    return prisma.cita.create({
-        data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
+    return db.cita.create({
+        data: { 
+            citMotivo, 
+            citFecha: citaFechaDate, 
+            citEstado, 
+            citObservaciones, 
+            citDuracion, 
+            usuario: { connect: { idUsuario: fkIdUsuario } }
+        },
     });
 }
 
@@ -82,19 +94,38 @@ export async function obtenerProximasCitasService(limit = 4) {
         where: { citFecha: { gte: new Date() }, citEstado: { not: "CANCELADA" } },
         orderBy: { citFecha: "asc" },
         take: limit,
-        include: { usuario: true },
+        include: { 
+            usuario: true,
+            factura: true,
+            encuesta: { include: { factura: true } },
+        },
     });
 
-    return citas.map((cita) => ({
-        id: cita.idCita,
-        paciente: `${cita.usuario.usuNombre} ${cita.usuario.usuApellido}`,
-        tipo: cita.citMotivo,
-        hora: new Date(cita.citFecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
-        estado: cita.citEstado,
-        color: cita.citEstado.toUpperCase() === "CONFIRMADA"
-            ? "bg-green-100 text-green-700"
-            : "bg-yellow-100 text-yellow-700",
-    }));
+    return citas.map((cita) => {
+        let metodoPago = "Pendiente";
+        let fac = cita.factura?.[0] || cita.encuesta?.[0]?.factura;
+
+        if (fac) {
+            const condiciones = fac.facCondiciones || "";
+            if (condiciones.includes("EFECTIVO")) metodoPago = "Efectivo";
+            else if (condiciones.includes("PSE") || condiciones.includes("TARJETA")) metodoPago = "PSE";
+            else metodoPago = "Procesado";
+        } else if (["COMPLETADA", "EN_ATENCION", "CONFIRMADA"].includes(cita.citEstado.toUpperCase())) {
+            metodoPago = "Procesado";
+        }
+
+        return {
+            id: cita.idCita,
+            paciente: `${cita.usuario.usuNombre} ${cita.usuario.usuApellido}`,
+            tipo: cita.citMotivo,
+            hora: new Date(cita.citFecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+            estado: cita.citEstado,
+            metodoPago,
+            color: cita.citEstado.toUpperCase() === "CONFIRMADA"
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700",
+        };
+    });
 }
 
 export async function contarCitasPendientesService() {
@@ -119,7 +150,10 @@ export async function getMisCitasService(idUsuario) {
             citObservaciones: true,
             citDuracion: true,
             factura: {
-                select: { idFactura: true, facNumero: true, facTotal: true, facFecha: true },
+                select: { idFactura: true, facNumero: true, facTotal: true, facFecha: true, facCondiciones: true },
+            },
+            encuesta: {
+                include: { factura: true },
             },
         },
     });
@@ -130,7 +164,7 @@ export async function tieneCitaActivaService(idUsuario) {
         where: {
             fkIdUsuario: idUsuario,
             citFecha: { gte: new Date() },
-            citEstado: { notIn: ["CANCELADA", "COMPLETADA", "Cancelada", "Completada"] },
+            citEstado: { notIn: ["CANCELADA", "COMPLETADA", "NO_ASISTIO"] },
         },
         orderBy: { citFecha: "asc" },
         select: { idCita: true, citFecha: true, citMotivo: true, citEstado: true, citDuracion: true },
@@ -143,7 +177,7 @@ export async function tieneCitaActivaService(idUsuario) {
 const ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "CANCELADA", "NO_ASISTIO"];
 
 const TRANSICIONES_VALIDAS = {
-    PENDIENTE:   ["CONFIRMADA", "EN_ATENCION", "CANCELADA", "NO_ASISTIO"],
+    PENDIENTE:   ["CONFIRMADA", "CANCELADA", "NO_ASISTIO"],
     CONFIRMADA:  ["EN_ATENCION", "CANCELADA", "NO_ASISTIO"],
     EN_ATENCION: ["COMPLETADA"],
     COMPLETADA:  [],
@@ -151,9 +185,9 @@ const TRANSICIONES_VALIDAS = {
     NO_ASISTIO:  [],
 };
 
-export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda } = {}) {
+export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, busqueda, fkIdUsuario } = {}) {
     const where = {};
-
+    if (fkIdUsuario) where.fkIdUsuario = parseInt(fkIdUsuario);
     if (estado) where.citEstado = { equals: estado, mode: "insensitive" };
 
     if (fechaDesde || fechaHasta) {
@@ -172,17 +206,28 @@ export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, 
         };
     }
 
-    return prisma.cita.findMany({
-        where,
-        orderBy: { citFecha: "desc" },
-        include: {
-            usuario: {
-                select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
+    const [citas, servicios] = await Promise.all([
+        prisma.cita.findMany({
+            where,
+            orderBy: { citFecha: "desc" },
+            include: {
+                usuario: {
+                    select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
+                },
+                encuesta: { include: { factura: true } },
+                factura: true,
+                historia_clinica: true,
             },
-            encuesta: { include: { factura: true } },
-            historia_clinica: true,
-        },
-    });
+        }),
+        prisma.servicio.findMany({ select: { serNombre: true, serPrecio: true } }),
+    ]);
+
+    const precioMap = new Map(servicios.map(s => [s.serNombre.toLowerCase(), parseFloat(s.serPrecio)]));
+
+    return citas.map(cita => ({
+        ...cita,
+        serPrecio: precioMap.get(cita.citMotivo?.toLowerCase()) ?? null,
+    }));
 }
 
 export async function actualizarEstadoCitaService(idCita, nuevoEstado) {
@@ -220,9 +265,16 @@ export async function actualizarEstadoCitaService(idCita, nuevoEstado) {
 }
 
 export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, citDuracion, citEstado = "PENDIENTE", citObservaciones }) {
+    const usuarioExiste = await prisma.usuario.findUnique({ where: { idUsuario: parseInt(fkIdUsuario) } });
+    if (!usuarioExiste) {
+        const err = new Error("El usuario seleccionado no existe.");
+        err.status = 404;
+        throw err;
+    }
+
     const citaFechaDate = new Date(citFecha);
 
-    if (citaFechaDate <= new Date()) {
+    if (citaFechaDate <= ahoraEnSistema()) {
         const err = new Error("No se puede agendar una cita en el pasado.");
         err.status = 400;
         throw err;
@@ -233,7 +285,14 @@ export async function crearCitaAdminService({ fkIdUsuario, citFecha, citMotivo, 
     await validarDisponibilidad(citFecha.substring(0, 10), inicioMin, citDuracion);
 
     return prisma.cita.create({
-        data: { citMotivo, citFecha: citaFechaDate, citEstado, citObservaciones, citDuracion, fkIdUsuario },
+        data: { 
+            citMotivo, 
+            citFecha: citaFechaDate, 
+            citEstado, 
+            citObservaciones, 
+            citDuracion, 
+            usuario: { connect: { idUsuario: parseInt(fkIdUsuario) } }
+        },
     });
 }
 
@@ -271,25 +330,20 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
                 facSubtotal: subtotal.toFixed(2),
                 facIva: iva.toFixed(2),
                 facTotal: total,
-                fkIdCarrito: carrito.idCarrito,
-                fkIdCita: parseInt(idCita),
+                usuario: { connect: { idUsuario: cita.fkIdUsuario } },
+                carrito: { connect: { idCarrito: carrito.idCarrito } },
+                cita:    { connect: { idCita: parseInt(idCita) } },
             },
         });
 
-        await tx.encuesta.create({
-            data: {
-                enFecha: new Date(),
-                enTipo: "Servicio Cita",
-                fkIdCita: parseInt(idCita),
-                fkIdFactura: factura.idFactura,
-            },
-        });
 
-        return tx.cita.update({
+        const citaActualizada = await tx.cita.update({
             where: { idCita: parseInt(idCita) },
             data: { citEstado: "CONFIRMADA" },
-            include: { usuario: { select: { usuNombre: true, usuApellido: true, usuCorreo: true } } },
+            include: { usuario: { select: { idUsuario: true, usuNombre: true, usuApellido: true, usuCorreo: true } } },
         });
+
+        return { cita: citaActualizada, factura };
     });
 }
 

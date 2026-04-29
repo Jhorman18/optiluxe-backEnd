@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { HttpError } from "../utils/httpErrors.js";
@@ -12,7 +13,7 @@ export async function loginUsuarioService(data) {
   }
 
   const usuario = await prisma.usuario.findUnique({
-    where: { usuCorreo: correo },
+    where: { usuCorreo: correo.toLowerCase().trim() },
     include: { rol: true },
   });
 
@@ -47,9 +48,16 @@ export async function loginUsuarioService(data) {
     token,
     usuario: {
       id: usuario.idUsuario,
+      idUsuario: usuario.idUsuario,
       nombre: usuario.usuNombre,
       apellido: usuario.usuApellido,
       correo: usuario.usuCorreo,
+      usuNombre: usuario.usuNombre,
+      usuApellido: usuario.usuApellido,
+      usuDocumento: usuario.usuDocumento,
+      usuTelefono: usuario.usuTelefono,
+      usuCorreo: usuario.usuCorreo,
+      usuDireccion: usuario.usuDireccion,
       rol: usuario.rol?.rolNombre,
     },
   };
@@ -82,8 +90,10 @@ export async function registerUsuarioService(data, solicitante = null) {
   }
 
 
+  const correoNormalizado = usuCorreo.toLowerCase().trim();
+
   const [correoExistente, documentoExistente] = await Promise.all([
-    prisma.usuario.findUnique({ where: { usuCorreo } }),
+    prisma.usuario.findUnique({ where: { usuCorreo: correoNormalizado } }),
     prisma.usuario.findUnique({ where: { usuDocumento } }),
   ]);
 
@@ -101,7 +111,7 @@ export async function registerUsuarioService(data, solicitante = null) {
 
   if (rol && rol !== "CLIENTE") {
 
-    if (!solicitante || solicitante.rol?.rolNombre !== "ADMIN") {
+    if (!solicitante || solicitante.rol?.rolNombre !== "ADMINISTRADOR") {
       throw new HttpError(
         "No autorizado para crear este tipo de usuario",
         403
@@ -126,12 +136,12 @@ export async function registerUsuarioService(data, solicitante = null) {
       usuNombre,
       usuApellido,
       usuDocumento,
-      usuCorreo,
+      usuCorreo: correoNormalizado,
       usuPassword: passwordHash,
       usuTelefono: usuTelefono || null,
       usuDireccion: usuDireccion || null,
       usuEstado: "ACTIVO",
-      fkIdRol: rolBD.idRol,
+      rol: { connect: { idRol: rolBD.idRol } },
     },
     include: { rol: true },
   });
@@ -155,15 +165,20 @@ export async function registerUsuarioService(data, solicitante = null) {
     token,
     usuario: {
       id: nuevoUsuario.idUsuario,
+      idUsuario: nuevoUsuario.idUsuario,
       nombre: nuevoUsuario.usuNombre,
       apellido: nuevoUsuario.usuApellido,
       correo: nuevoUsuario.usuCorreo,
+      usuNombre: nuevoUsuario.usuNombre,
+      usuApellido: nuevoUsuario.usuApellido,
+      usuDocumento: nuevoUsuario.usuDocumento,
+      usuTelefono: nuevoUsuario.usuTelefono,
+      usuCorreo: nuevoUsuario.usuCorreo,
+      usuDireccion: nuevoUsuario.usuDireccion,
       rol: nuevoUsuario.rol?.rolNombre,
     },
   };
 }
-
-import crypto from "crypto";
 
 export async function forgotPasswordService(correo) {
   if (!correo) {
@@ -171,7 +186,7 @@ export async function forgotPasswordService(correo) {
   }
 
   const usuario = await prisma.usuario.findUnique({
-    where: { usuCorreo: correo },
+    where: { usuCorreo: correo.toLowerCase().trim() },
   });
 
   if (!usuario) {
@@ -191,10 +206,10 @@ export async function forgotPasswordService(correo) {
     },
   });
 
-  return { 
-    token: resetToken, 
+  return {
+    token: resetToken,
     nombre: usuario.usuNombre,
-    correo: usuario.usuCorreo 
+    correo: usuario.usuCorreo
   };
 }
 

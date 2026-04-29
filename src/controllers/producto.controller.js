@@ -10,10 +10,12 @@ import {
 export const listarProductos = async (req, res, next) => {
   try {
     const { categoria, busqueda, admin } = req.query;
+    const rolesStaff = ["ADMINISTRADOR", "EMPLEADO"];
+    const esStaff = req.usuario && rolesStaff.includes(req.usuario.rol?.rolNombre);
     const productos = await listarProductosService({
       categoria,
       busqueda,
-      admin: admin === 'true'
+      admin: admin === 'true' && esStaff,
     });
     return res.status(200).json({ productos });
   } catch (error) {

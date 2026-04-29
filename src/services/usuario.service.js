@@ -1,5 +1,8 @@
 import prisma from "../config/prisma.js";
 import bcrypt from "bcrypt";
+import { HttpError } from "../utils/httpErrors.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import { cambioContrasenaHtml } from "../templates/emails/cambioContrasena.template.js";
 
 export async function contarPacientesActivosService() {
     return await prisma.usuario.count({
@@ -29,6 +32,20 @@ export async function listarUsuariosService({ busqueda, rol } = {}) {
 }
 
 export async function toggleEstadoUsuarioService(id, estado) {
+    if (estado === "INACTIVO") {
+        const usuario = await prisma.usuario.findUnique({
+            where: { idUsuario: id },
+            include: { rol: true },
+        });
+        if (usuario?.rol?.rolNombre === "ADMINISTRADOR") {
+            const totalAdmins = await prisma.usuario.count({
+                where: { rol: { rolNombre: "ADMINISTRADOR" }, usuEstado: "ACTIVO" },
+            });
+            if (totalAdmins <= 1) {
+                throw new HttpError("No puedes desactivar el único administrador activo del sistema.", 400);
+            }
+        }
+    }
     return await prisma.usuario.update({
         where: { idUsuario: id },
         data: { usuEstado: estado },
@@ -42,11 +59,11 @@ export async function crearUsuarioService({ usuNombre, usuApellido, usuDocumento
         prisma.usuario.findUnique({ where: { usuDocumento } }),
     ]);
 
-    if (correoExistente) throw { status: 409, message: "El correo ya está registrado" };
-    if (documentoExistente) throw { status: 409, message: "El documento ya está registrado" };
+    if (correoExistente) throw new HttpError("El correo ya está registrado", 409);
+    if (documentoExistente) throw new HttpError("El documento ya está registrado", 409);
 
     const rol = await prisma.rol.findUnique({ where: { rolNombre: rolNombre ?? "CLIENTE" } });
-    if (!rol) throw { status: 400, message: "Rol no válido" };
+    if (!rol) throw new HttpError("Rol no válido", 400);
 
     const passwordHash = await bcrypt.hash(usuPassword, 10);
 
@@ -66,21 +83,78 @@ export async function crearUsuarioService({ usuNombre, usuApellido, usuDocumento
     });
 }
 
+export async function editarPerfilPropioService(id, { usuTelefono, usuCorreo, usuDireccion, usuPassword }) {
+    const data = {};
+    if (usuTelefono  !== undefined) data.usuTelefono  = usuTelefono;
+    if (usuCorreo    !== undefined) data.usuCorreo    = usuCorreo;
+    if (usuDireccion !== undefined) data.usuDireccion = usuDireccion;
+
+    const cambiaPassword = !!usuPassword;
+    if (cambiaPassword) data.usuPassword = await bcrypt.hash(usuPassword, 10);
+
+    const usuarioActualizado = await prisma.usuario.update({
+        where: { idUsuario: id },
+        data,
+        include: { rol: true },
+    });
+
+    if (cambiaPassword) {
+        const nombre = usuarioActualizado.usuNombre ?? "Usuario";
+        const correo = usuarioActualizado.usuCorreo;
+        sendEmail({
+            to: correo,
+            subject: "Tu contraseña de OptiLuxe fue cambiada",
+            html: cambioContrasenaHtml({ nombreUsuario: nombre, correo }),
+        }).catch(err => console.error("Error enviando email de cambio de contraseña:", err));
+    }
+
+    return usuarioActualizado;
+}
+
 export async function editarUsuarioService(id, { usuNombre, usuApellido, usuDocumento, usuTelefono, usuCorreo, usuDireccion, rolNombre, usuPassword }) {
     const data = { usuNombre, usuApellido, usuDocumento, usuTelefono, usuCorreo, usuDireccion };
 
     if (rolNombre) {
         const rol = await prisma.rol.findUnique({ where: { rolNombre } });
-        if (rol) data.fkIdRol = rol.idRol;
+        if (rol) {
+            if (rolNombre !== "ADMINISTRADOR") {
+                const usuarioActual = await prisma.usuario.findUnique({
+                    where: { idUsuario: id },
+                    include: { rol: true },
+                });
+                if (usuarioActual?.rol?.rolNombre === "ADMINISTRADOR") {
+                    const totalAdmins = await prisma.usuario.count({
+                        where: { rol: { rolNombre: "ADMINISTRADOR" }, usuEstado: "ACTIVO" },
+                    });
+                    if (totalAdmins <= 1) {
+                        throw new HttpError("Debe existir al menos un administrador activo en el sistema.", 400);
+                    }
+                }
+            }
+            data.fkIdRol = rol.idRol;
+        }
     }
 
-    if (usuPassword) {
+    const cambiaPassword = !!usuPassword;
+    if (cambiaPassword) {
         data.usuPassword = await bcrypt.hash(usuPassword, 10);
     }
 
-    return prisma.usuario.update({
+    const usuarioActualizado = await prisma.usuario.update({
         where: { idUsuario: id },
         data,
         include: { rol: true },
     });
+
+    if (cambiaPassword) {
+        const nombre = usuarioActualizado.usuNombre ?? "Usuario";
+        const correo = usuarioActualizado.usuCorreo;
+        sendEmail({
+            to: correo,
+            subject: "Tu contraseña de OptiLuxe fue cambiada",
+            html: cambioContrasenaHtml({ nombreUsuario: nombre, correo }),
+        }).catch(err => console.error("Error enviando email de cambio de contraseña:", err));
+    }
+
+    return usuarioActualizado;
 }

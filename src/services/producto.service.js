@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { HttpError } from "../utils/httpErrors.js";
 
 export async function listarProductosService({ categoria, busqueda, admin = false } = {}) {
   const where = {};
@@ -77,11 +78,21 @@ export async function buscarProductoPorNombreYCategoriaService(nombre, idCategor
 }
 
 export async function crearProductoService(data) {
+  const existente = await prisma.producto.findFirst({
+    where: {
+      proNombre: { equals: data.nombre, mode: "insensitive" },
+      fkIdCategoria: parseInt(data.idCategoria),
+    },
+  });
+  if (existente) {
+    throw new HttpError("Ya existe un producto con ese nombre en esta categoría.", 409);
+  }
+
   return await prisma.producto.create({
     data: {
       proNombre: data.nombre,
       proDescripcion: data.descripcion,
-      fkIdCategoria: parseInt(data.idCategoria),
+      categoria: { connect: { idCategoria: parseInt(data.idCategoria) } },
       proPrecio: parseFloat(data.precio),
       proStock: parseInt(data.stock),
       proEstado: "ACTIVO",
@@ -97,7 +108,7 @@ export async function actualizarProductoService(id, data) {
     data: {
       proNombre: data.nombre,
       proDescripcion: data.descripcion,
-      fkIdCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      categoria: data.idCategoria ? { connect: { idCategoria: parseInt(data.idCategoria) } } : undefined,
       proPrecio: data.precio ? parseFloat(data.precio) : undefined,
       proStock: data.stock !== undefined ? parseInt(data.stock) : undefined,
       proImagen: data.imagen,

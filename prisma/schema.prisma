@@ -23,6 +23,7 @@ model usuario {
   usuResetTokenExpiry DateTime?
   carrito             carrito[]
   cita                cita[]
+  factura             factura[]
   log_acceso          log_acceso[]
   notificacion        notificacion[]
   rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
@@ -78,19 +79,23 @@ model categoria {
 }
 
 model factura {
-  idFactura      Int        @id @default(autoincrement())
-  facNumero      String     @unique @db.VarChar(50)
-  facFecha       DateTime   @default(now())
-  facConcepto    String     @db.VarChar(200)
-  facCondiciones String?    @db.VarChar(300)
-  facSubtotal    Decimal    @db.Decimal(10, 2)
-  facIva         Decimal    @db.Decimal(10, 2)
-  facTotal       Decimal    @db.Decimal(10, 2)
-  fkIdCarrito    Int
-  fkIdCita       Int?
-  encuesta       encuesta[]
-  carrito        carrito    @relation(fields: [fkIdCarrito], references: [idCarrito])
-  cita           cita?      @relation(fields: [fkIdCita], references: [idCita])
+  idFactura          Int        @id @default(autoincrement())
+  facNumero          String     @unique @db.VarChar(50)
+  facFecha           DateTime   @default(now())
+  facConcepto        String
+  facCondiciones     String?    @db.VarChar(300)
+  facSubtotal        Decimal    @db.Decimal(10, 2)
+  facIva             Decimal    @db.Decimal(10, 2)
+  facTotal           Decimal    @db.Decimal(10, 2)
+  fkIdCarrito        Int?
+  fkIdCita           Int?
+  facEstado          String     @default("PAGADA") @db.VarChar(20)
+  facMotivoAnulacion String?
+  fkIdUsuario        Int?
+  encuesta           encuesta[]
+  carrito            carrito?   @relation(fields: [fkIdCarrito], references: [idCarrito])
+  cita               cita?      @relation(fields: [fkIdCita], references: [idCita])
+  usuario            usuario?   @relation(fields: [fkIdUsuario], references: [idUsuario])
 }
 
 model cita {
@@ -149,8 +154,8 @@ model respuesta_encuesta {
 model notificacion {
   idNotificacion     Int      @id @default(autoincrement())
   notTitulo          String   @db.VarChar(100)
-  notMensaje         String   @db.Text
-  notCanal           String   @db.VarChar(50) @default("Email")
+  notMensaje         String
+  notCanal           String   @default("Email") @db.VarChar(50)
   notEstado          String   @db.VarChar(20)
   notLeida           Boolean  @default(false)
   notFechaProgramada DateTime
@@ -178,4 +183,23 @@ model webpush_suscripcion {
   webFechaRegistro     DateTime @default(now())
   fkIdUsuario          Int
   usuario              usuario  @relation(fields: [fkIdUsuario], references: [idUsuario])
+}
+
+model contacto {
+  idContacto    Int      @id @default(autoincrement())
+  conNombre     String   @db.VarChar(100)
+  conCorreo     String   @db.VarChar(150)
+  conTelefono   String?  @db.VarChar(20)
+  conMensaje    String
+  conFechaEnvio DateTime @default(now())
+  conEstado     String   @default("PENDIENTE") @db.VarChar(20)
+}
+
+model servicio {
+  idServicio     Int      @id @default(autoincrement())
+  serNombre      String   @db.VarChar(150)
+  serDescripcion String?  @db.Text
+  serPrecio      Decimal  @db.Decimal(10, 2)
+  serDuracion    Int      @default(30)
+  serEstado      String   @default("ACTIVO") @db.VarChar(20)
 }

@@ -1,4 +1,18 @@
 import * as usuarioService from "../services/usuario.service.js";
+import { registerUsuarioService } from "../services/auth.service.js";
+
+export const editarPerfilPropio = async (req, res, next) => {
+    try {
+        const id = req.usuario.idUsuario;
+        const usuario = await usuarioService.editarPerfilPropioService(id, req.body);
+        res.json(usuario);
+    } catch (error) {
+        if (error.code === "P2002") {
+            return res.status(409).json({ message: "El correo ya está en uso por otro usuario." });
+        }
+        next(error);
+    }
+};
 
 export const getEstadisticasPacientes = async (_req, res, next) => {
     try {
@@ -54,6 +68,15 @@ export const editarUsuario = async (req, res, next) => {
         if (error.code === "P2002") {
             return res.status(409).json({ message: "El correo o documento ya está en uso por otro usuario." });
         }
+        next(error);
+    }
+};
+
+export const crearUsuario = async (req, res, next) => {
+    try {
+        const result = await registerUsuarioService(req.body, req.usuario);
+        res.status(201).json(result.usuario);
+    } catch (error) {
         next(error);
     }
 };
