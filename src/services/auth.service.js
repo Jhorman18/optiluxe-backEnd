@@ -13,7 +13,7 @@ export async function loginUsuarioService(data) {
   }
 
   const usuario = await prisma.usuario.findUnique({
-    where: { usuCorreo: correo },
+    where: { usuCorreo: correo.toLowerCase().trim() },
     include: { rol: true },
   });
 
@@ -90,8 +90,10 @@ export async function registerUsuarioService(data, solicitante = null) {
   }
 
 
+  const correoNormalizado = usuCorreo.toLowerCase().trim();
+
   const [correoExistente, documentoExistente] = await Promise.all([
-    prisma.usuario.findUnique({ where: { usuCorreo } }),
+    prisma.usuario.findUnique({ where: { usuCorreo: correoNormalizado } }),
     prisma.usuario.findUnique({ where: { usuDocumento } }),
   ]);
 
@@ -134,7 +136,7 @@ export async function registerUsuarioService(data, solicitante = null) {
       usuNombre,
       usuApellido,
       usuDocumento,
-      usuCorreo,
+      usuCorreo: correoNormalizado,
       usuPassword: passwordHash,
       usuTelefono: usuTelefono || null,
       usuDireccion: usuDireccion || null,
@@ -184,7 +186,7 @@ export async function forgotPasswordService(correo) {
   }
 
   const usuario = await prisma.usuario.findUnique({
-    where: { usuCorreo: correo },
+    where: { usuCorreo: correo.toLowerCase().trim() },
   });
 
   if (!usuario) {
