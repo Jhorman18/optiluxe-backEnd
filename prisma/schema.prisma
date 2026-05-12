@@ -23,7 +23,7 @@ model usuario {
   usuResetTokenExpiry DateTime?
   carrito             carrito[]
   cita                cita[]
-  factura             factura[]
+  soporte_pago        soporte_pago[]
   log_acceso          log_acceso[]
   notificacion        notificacion[]
   rol                 rol?                  @relation(fields: [fkIdRol], references: [idRol])
@@ -44,7 +44,7 @@ model carrito {
   fkIdUsuario      Int
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   carrito_producto carrito_producto[]
-  factura          factura[]
+  soporte_pago     soporte_pago[]
 }
 
 model carrito_producto {
@@ -78,19 +78,18 @@ model categoria {
   producto    producto[]
 }
 
-model factura {
-  idFactura          Int        @id @default(autoincrement())
-  facNumero          String     @unique @db.VarChar(50)
-  facFecha           DateTime   @default(now())
-  facConcepto        String
-  facCondiciones     String?    @db.VarChar(300)
-  facSubtotal        Decimal    @db.Decimal(10, 2)
-  facIva             Decimal    @db.Decimal(10, 2)
-  facTotal           Decimal    @db.Decimal(10, 2)
+model soporte_pago {
+  idSoporte          Int        @id @default(autoincrement())
+  sopNumero          String     @unique @db.VarChar(50)
+  sopFecha           DateTime   @default(now())
+  sopConcepto        String
+  sopCondiciones     String?    @db.VarChar(300)
+  sopSubtotal        Decimal    @db.Decimal(10, 2)
+  sopTotal           Decimal    @db.Decimal(10, 2)
   fkIdCarrito        Int?
   fkIdCita           Int?
-  facEstado          String     @default("PAGADA") @db.VarChar(20)
-  facMotivoAnulacion String?
+  sopEstado          String     @default("PAGADA") @db.VarChar(20)
+  sopMotivoAnulacion String?
   fkIdUsuario        Int?
   encuesta           encuesta[]
   carrito            carrito?   @relation(fields: [fkIdCarrito], references: [idCarrito])
@@ -108,7 +107,7 @@ model cita {
   fkIdUsuario      Int
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   encuesta         encuesta[]
-  factura          factura[]
+  soporte_pago     soporte_pago[]
   historia_clinica historia_clinica[]
 }
 
@@ -126,10 +125,10 @@ model encuesta {
   idEncuesta         Int                  @id @default(autoincrement())
   enFecha            DateTime             @default(now())
   enTipo             String               @db.VarChar(50)
-  fkIdFactura        Int?
+  fkIdSoporte        Int?
   fkIdCita           Int?
   cita               cita?                @relation(fields: [fkIdCita], references: [idCita])
-  factura            factura?             @relation(fields: [fkIdFactura], references: [idFactura])
+  soporte_pago       soporte_pago?        @relation(fields: [fkIdSoporte], references: [idSoporte])
   respuesta_encuesta respuesta_encuesta[]
 }
 

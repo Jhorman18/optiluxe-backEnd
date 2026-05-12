@@ -1,5 +1,5 @@
 import prisma from "../config/prisma.js";
-import { IVA } from "../config/negocio.js";
+
 import { HttpError } from "../utils/httpErrors.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { crearNotificacionAutomatica } from "./notificacion.service.js";
@@ -23,14 +23,12 @@ function formatCarrito(carrito) {
     }));
 
     const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
-    const iva      = subtotal * IVA;
 
     return {
         idCarrito:  carrito.idCarrito,
         items,
         subtotal,
-        iva,
-        total:      subtotal + iva,
+        total:      subtotal,
         totalItems: items.reduce((acc, i) => acc + i.cantidad, 0),
     };
 }
@@ -152,29 +150,28 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
         }
 
         const currentYear = new Date().getFullYear();
-        const prefix = `FAC-${currentYear}-`;
-        const lastFactura = await tx.factura.findFirst({
-            where: { facNumero: { startsWith: prefix } },
-            orderBy: { facNumero: "desc" },
+        const prefix = `SOP-${currentYear}-`;
+        const lastSoporte = await tx.soporte_pago.findFirst({
+            where: { sopNumero: { startsWith: prefix } },
+            orderBy: { sopNumero: "desc" },
         });
         let nextSeq = 1;
-        if (lastFactura) {
-            const parts = lastFactura.facNumero.split("-");
+        if (lastSoporte) {
+            const parts = lastSoporte.sopNumero.split("-");
             const last = parseInt(parts[parts.length - 1]);
             if (!isNaN(last)) nextSeq = last + 1;
         }
-        const facNumero = `${prefix}${String(nextSeq).padStart(5, "0")}`;
+        const sopNumero = `${prefix}${String(nextSeq).padStart(5, "0")}`;
 
 
-        const nuevaFactura = await tx.factura.create({
+        const nuevoSoporte = await tx.soporte_pago.create({
             data: {
-                facNumero:     facNumero,
-                facFecha:      new Date(),
-                facConcepto:   "Compra de productos ópticos - OptiLuxe",
-                facCondiciones: metodoPago === "PSE" ? "Pago electrónico PSE" : "Pago en efectivo",
-                facSubtotal:   formatted.subtotal,
-                facIva:        formatted.iva,
-                facTotal:      formatted.total,
+                sopNumero:     sopNumero,
+                sopFecha:      new Date(),
+                sopConcepto:   "Compra de productos ópticos - OptiLuxe",
+                sopCondiciones: metodoPago === "PSE" ? "Pago electrónico PSE" : "Pago en efectivo",
+                sopSubtotal:   formatted.subtotal,
+                sopTotal:      formatted.total,
                 usuario:     { connect: { idUsuario: idUsuario } },
                 carrito:     { connect: { idCarrito: carrito.idCarrito } },
             },
@@ -185,17 +182,17 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
             data:  { carEstado: "COMPLETADO" },
         });
 
-        return nuevaFactura;
+        return nuevoSoporte;
     });
 
     // Email de confirmación (fuera de la transacción)
     try {
         await sendEmail({
             to:      carrito.usuario.usuCorreo,
-            subject: `Confirmación de compra - ${factura.facNumero}`,
+            subject: `Confirmación de compra - ${soporte.sopNumero}`,
             html:    confirmacionCompraHtml({
                 nombreUsuario: carrito.usuario.usuNombre,
-                facNumero:     factura.facNumero,
+                sopNumero:     soporte.sopNumero,
                 items:         formatted.items.map((i) => ({
                     nombre:   i.producto.nombre,
                     cantidad: i.cantidad,
@@ -211,15 +208,14 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
     crearNotificacionAutomatica(
         idUsuario,
         "Compra exitosa",
-        `Tu pedido #${factura.facNumero} fue procesado por $${formatted.total.toLocaleString("es-CO")}. ¡Gracias por tu compra!`
+        `Tu pedido #${soporte.sopNumero} fue procesado por $${formatted.total.toLocaleString("es-CO")}. ¡Gracias por tu compra!`
     ).catch(() => {});
 
     return {
-      idFactura: factura.idFactura,
-      facNumero: factura.facNumero,
+      idSoporte: soporte.idSoporte,
+      sopNumero: soporte.sopNumero,
         metodoPago,
         subtotal:  formatted.subtotal,
-        iva:       formatted.iva,
         total:     formatted.total,
     };
 }

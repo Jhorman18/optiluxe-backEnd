@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import { corsMiddleware } from "./src/middlewares/cors.middleware.js";
 import { iniciarJobs } from "./src/jobs/index.js";
 import authRoutes from "./src/routes/auth.routes.js";
-import facturaRoutes from "./src/routes/factura.routes.js";
+import soportePagoRoutes from "./src/routes/soportePago.routes.js";
 import productoRoutes from "./src/routes/producto.routes.js";
 import carritoRoutes from "./src/routes/carrito.routes.js";
 import citaRoutes from "./src/routes/cita.routes.js";
@@ -31,7 +31,7 @@ app.use(morgan("dev"));
 
 
 app.use("/api/auth", authRoutes);
-app.use("/api/factura", facturaRoutes);
+app.use("/api/soporte-pago", soportePagoRoutes);
 app.use("/api/producto", productoRoutes);
 app.use("/api/carrito", carritoRoutes);
 app.use("/api/cita", citaRoutes);

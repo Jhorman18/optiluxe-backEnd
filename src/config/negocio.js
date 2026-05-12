@@ -1,7 +1,7 @@
 // Constantes de reglas de negocio de OptiLuxe.
 // Cambiar aquí afecta todo el sistema.
 
-export const IVA = 0.19;
+export const IVA = 0;
 
 // Horario de atención en minutos desde medianoche (UTC)
 export const HORA_APERTURA_MIN = 8 * 60;   // 08:00 → 480 min

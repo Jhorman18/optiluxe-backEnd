@@ -81,7 +81,7 @@ export const registrarCita = async (req, res) => {
         citDuracion: 30 // Opcional: podrías recibirlo del body
       }, tx);
 
-      let nuevaFactura = null;
+      let nuevoSoporte = null;
       let nuevaEncuesta = null;
 
       if (pago && pago.totalAPagar && pago.totalAPagar > 0) {
@@ -93,20 +93,20 @@ export const registrarCita = async (req, res) => {
           }
         });
 
-        const countFacturas = await tx.factura.count();
-        const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(countFacturas + 1).toString().padStart(5, '0')}`;
+        const countSoportes = await tx.soporte_pago.count();
+        const facNumero = `SOP-CIT-${new Date().getFullYear()}-${(countSoportes + 1).toString().padStart(5, '0')}`;
 
         const total = parseFloat(pago.totalAPagar);
-        const subtotal = total / 1.19;
-        const iva = total - subtotal;
 
-        nuevaFactura = await tx.factura.create({
+
+
+        nuevoSoporte = await tx.soporte_pago.create({
           data: {
             facNumero,
             facConcepto: `Pago de servicio: ${citMotivo}`,
             facCondiciones: `Método: ${pago.metodo}`,
-            facSubtotal: subtotal.toFixed(2),
-            facIva: iva.toFixed(2),
+            facSubtotal: total,
+            facIva: 0,
             facTotal: total,
             usuario: { connect: { idUsuario: fkIdUsuario } },
             carrito: { connect: { idCarrito: nuevoCarrito.idCarrito } },
@@ -115,11 +115,11 @@ export const registrarCita = async (req, res) => {
         });
 
       }
-      return { cita: nuevaCita, factura: nuevaFactura };
+      return { cita: nuevaCita, soporte: nuevoSoporte };
     });
 
     // Correo de confirmación
-    enviarConfirmacionCitaEmail(resultado.cita, req.usuario, resultado.factura);
+    enviarConfirmacionCitaEmail(resultado.cita, req.usuario, resultado.soporte);
 
     // Notificación interna automática de confirmación
     const fechaCita = new Date(resultado.cita.citFecha).toLocaleString("es-CO", {
@@ -282,10 +282,10 @@ export const registrarPagoCita = async (req, res, next) => {
       return res.status(400).json({ message: "Los campos monto y metodoPago son obligatorios." });
     }
 
-    const { cita, factura } = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
+    const { cita, soporte } = await citaService.registrarPagoCitaService(id, { monto, metodoPago });
 
-    // Enviar correo de confirmación con la factura
-    enviarConfirmacionCitaEmail(cita, cita.usuario, factura);
+    // Enviar correo de confirmación con el soporte de pago
+    enviarConfirmacionCitaEmail(cita, cita.usuario, soporte);
 
     crearNotificacionAutomatica(
       cita.fkIdUsuario,
