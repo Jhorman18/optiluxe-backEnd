@@ -135,7 +135,7 @@ export async function pagarCarritoService(idUsuario, metodoPago) {
 
     const formatted = formatCarrito(carrito);
 
-    const factura = await prisma.$transaction(async (tx) => {
+    const soporte = await prisma.$transaction(async (tx) => {
         for (const item of carrito.carrito_producto) {
             if (item.producto.proStock < item.cantidad) {
                 throw new HttpError(

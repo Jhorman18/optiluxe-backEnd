@@ -317,7 +317,7 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
         });
 
         const count = await tx.soporte_pago.count();
-        const facNumero = `SOP-CIT-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
+        const sopNumero = `SOP-CIT-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
         const total = parseFloat(monto);
 
         const soporte = await tx.soporte_pago.create({
