@@ -44,7 +44,20 @@ model carrito {
   fkIdUsuario      Int
   usuario          usuario            @relation(fields: [fkIdUsuario], references: [idUsuario])
   carrito_producto carrito_producto[]
+  carrito_servicio carrito_servicio[]
   soporte_pago     soporte_pago[]
+}
+
+model carrito_servicio {
+  idCarritoServicio Int       @id @default(autoincrement())
+  fkIdCarrito       Int
+  fkIdServicio      Int?
+  csNombre          String    @db.VarChar(150)
+  csPrecio          Decimal   @db.Decimal(10, 2)
+  csFecha           String    @db.VarChar(10)
+  csHora            String    @db.VarChar(5)
+  carrito           carrito   @relation(fields: [fkIdCarrito], references: [idCarrito])
+  servicio          servicio? @relation(fields: [fkIdServicio], references: [idServicio])
 }
 
 model carrito_producto {
@@ -195,10 +208,11 @@ model contacto {
 }
 
 model servicio {
-  idServicio     Int      @id @default(autoincrement())
-  serNombre      String   @db.VarChar(150)
-  serDescripcion String?  @db.Text
-  serPrecio      Decimal  @db.Decimal(10, 2)
-  serDuracion    Int      @default(30)
-  serEstado      String   @default("ACTIVO") @db.VarChar(20)
+  idServicio       Int                @id @default(autoincrement())
+  serNombre        String             @db.VarChar(150)
+  serDescripcion   String?            @db.Text
+  serPrecio        Decimal            @db.Decimal(10, 2)
+  serDuracion      Int                @default(30)
+  serEstado        String             @default("ACTIVO") @db.VarChar(20)
+  carrito_servicio carrito_servicio[]
 }

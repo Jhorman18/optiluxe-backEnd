@@ -82,7 +82,7 @@ export const getAllSoportesPago = async (filtros) => {
 export const getSoportePagoById = async (id) => {
   const soporte = await prisma.soporte_pago.findUnique({
     where: { idSoporte: parseInt(id) },
-    include: { 
+    include: {
       usuario: {
         select: {
           idUsuario: true,
@@ -98,6 +98,9 @@ export const getSoportePagoById = async (id) => {
         include: {
           carrito_producto: {
             include: { producto: true }
+          },
+          carrito_servicio: {
+            include: { servicio: true }
           },
           usuario: true
         }
@@ -130,25 +133,28 @@ export const getSoportePagoById = async (id) => {
 };
 
 export const createSoportePago = async (data) => {
-  const { 
-    sopSubtotal, 
-    sopTotal, 
-    fkIdUsuario, 
-    fkIdCarrito, 
-    fkIdCita, 
-    sopNumero, 
-    items, // Si se pasan [{ idProducto, cantidad }], calculamos totales y creamos carrito
-    ...rest 
+  const {
+    sopSubtotal,
+    sopTotal,
+    fkIdUsuario,
+    fkIdCarrito,
+    fkIdCita,
+    sopNumero,
+    items,     // [{ idProducto, cantidad }] → crea carrito_producto y descuenta stock
+    servicios, // [{ idServicio, nombre, precio, fecha, hora }] → crea carrito_servicio
+    ...rest
   } = data;
 
   const nuevo = await prisma.$transaction(async (tx) => {
-    let finalSubtotal = parseFloat(sopSubtotal) || 0;
-    let finalTotal = parseFloat(sopTotal) || 0;
+    const tieneItems = Array.isArray(items) && items.length > 0;
+    const tieneServicios = Array.isArray(servicios) && servicios.length > 0;
+
+    let finalSubtotal = 0;
+    let finalTotal = 0;
     let targetCarritoId = fkIdCarrito ? parseInt(fkIdCarrito) : null;
 
-    // Si se proporcionan items, creamos un carrito y calculamos totales automáticamente
-    if (items && Array.isArray(items) && items.length > 0) {
-      if (!fkIdUsuario) throw new Error("Para crear un soporte de pago con productos se requiere un cliente (fkIdUsuario).");
+    if (tieneItems || tieneServicios) {
+      if (!fkIdUsuario) throw new Error("Se requiere un cliente para registrar una venta.");
 
       const nuevoCarrito = await tx.carrito.create({
         data: {
@@ -159,60 +165,71 @@ export const createSoportePago = async (data) => {
       });
       targetCarritoId = nuevoCarrito.idCarrito;
 
-      // Consolidamos items por producto para evitar errores de constraint único (fkIdCarrito, fkIdProducto)
-      const groupedItemsMap = new Map();
-      for (const item of items) {
-        const id = parseInt(item.idProducto);
-        const qty = parseInt(item.cantidad);
-        if (groupedItemsMap.has(id)) {
-          groupedItemsMap.get(id).cantidad += qty;
-        } else {
-          groupedItemsMap.set(id, { idProducto: id, cantidad: qty });
+      // ── Productos ───────────────────────────────────────────────────────────
+      if (tieneItems) {
+        // Consolidar duplicados para respetar el unique (fkIdCarrito, fkIdProducto)
+        const groupedMap = new Map();
+        for (const item of items) {
+          const id = parseInt(item.idProducto);
+          const qty = parseInt(item.cantidad);
+          groupedMap.has(id)
+            ? (groupedMap.get(id).cantidad += qty)
+            : groupedMap.set(id, { idProducto: id, cantidad: qty });
+        }
+        const consolidatedItems = Array.from(groupedMap.values());
+
+        const dbProducts = await tx.producto.findMany({
+          where: { idProducto: { in: consolidatedItems.map(i => i.idProducto) } }
+        });
+        const dbMap = new Map(dbProducts.map(p => [p.idProducto, p]));
+
+        for (const item of consolidatedItems) {
+          const prod = dbMap.get(item.idProducto);
+          if (!prod) throw new Error(`Producto ID ${item.idProducto} no encontrado`);
+          if (prod.proStock < item.cantidad)
+            throw new Error(`Stock insuficiente para: ${prod.proNombre}. Disponible: ${prod.proStock}`);
+
+          finalSubtotal += Number(prod.proPrecio) * item.cantidad;
+
+          await tx.carrito_producto.create({
+            data: {
+              carrito: { connect: { idCarrito: targetCarritoId } },
+              producto: { connect: { idProducto: item.idProducto } },
+              cantidad: item.cantidad
+            }
+          });
+          await tx.producto.update({
+            where: { idProducto: item.idProducto },
+            data: { proStock: { decrement: item.cantidad } }
+          });
         }
       }
-      const consolidatedItems = Array.from(groupedItemsMap.values());
 
-      // Optimizamos: Obtenemos todos los productos involucrados en una sola consulta
-      const productIds = consolidatedItems.map(item => item.idProducto);
-      const dbProductsList = await tx.producto.findMany({
-        where: { idProducto: { in: productIds } }
-      });
-
-      const dbProductsMap = new Map(dbProductsList.map(p => [p.idProducto, p]));
-      let subtotalAcumulado = 0;
-
-      for (const item of consolidatedItems) {
-        const prodId = item.idProducto;
-        const prod = dbProductsMap.get(prodId);
-
-        if (!prod) throw new Error(`Producto ID ${prodId} no encontrado`);
-        if (prod.proStock < item.cantidad) {
-          throw new Error(`Stock insuficiente para: ${prod.proNombre}. Stock disponible: ${prod.proStock}`);
+      // ── Servicios ───────────────────────────────────────────────────────────
+      if (tieneServicios) {
+        for (const s of servicios) {
+          finalSubtotal += parseFloat(s.precio) || 0;
+          await tx.carrito_servicio.create({
+            data: {
+              carrito: { connect: { idCarrito: targetCarritoId } },
+              ...(s.idServicio ? { servicio: { connect: { idServicio: parseInt(s.idServicio) } } } : {}),
+              csNombre: s.nombre,
+              csPrecio: parseFloat(s.precio) || 0,
+              csFecha: s.fecha,
+              csHora: s.hora
+            }
+          });
         }
-
-        const price = Number(prod.proPrecio);
-        subtotalAcumulado += price * item.cantidad;
-
-        await tx.carrito_producto.create({
-          data: {
-            carrito: { connect: { idCarrito: targetCarritoId } },
-            producto: { connect: { idProducto: prodId } },
-            cantidad: item.cantidad
-          }
-        });
-
-        await tx.producto.update({
-          where: { idProducto: prodId },
-          data: { proStock: { decrement: item.cantidad } }
-        });
       }
 
-      finalSubtotal = subtotalAcumulado;
-      finalTotal = finalSubtotal; // Sin IVA
+      finalTotal = finalSubtotal;
+    } else {
+      // Soporte manual sin carrito (cita externa, pago libre)
+      finalSubtotal = parseFloat(sopSubtotal) || 0;
+      finalTotal = parseFloat(sopTotal) || 0;
     }
 
-    // Determinamos si es un soporte de cita/servicio o de productos para el prefijo
-    const isServiceInvoice = !items || !Array.isArray(items) || items.length === 0;
+    const isServiceInvoice = !tieneItems;
     const nSoporte = sopNumero || await _generarSiguienteNumero(tx, isServiceInvoice);
 
     return tx.soporte_pago.create({
@@ -227,27 +244,100 @@ export const createSoportePago = async (data) => {
       },
     });
   }, {
-    timeout: 20000 // Aumentamos el timeout a 20 segundos para evitar errores en servidores lentos
+    timeout: 20000
   });
 
   return await getSoportePagoById(nuevo.idSoporte);
 };
 
 export const updateSoportePago = async (id, data) => {
-  const { sopSubtotal, sopTotal, fkIdUsuario, fkIdCarrito, ...rest } = data;
-  
-  const updateData = { ...rest };
-  if (sopSubtotal !== undefined) updateData.sopSubtotal = parseFloat(sopSubtotal);
-  if (sopTotal !== undefined) updateData.sopTotal = parseFloat(sopTotal);
-  if (fkIdUsuario !== undefined) updateData.usuario = fkIdUsuario ? { connect: { idUsuario: parseInt(fkIdUsuario) } } : { disconnect: true };
-  if (fkIdCarrito !== undefined) updateData.carrito = fkIdCarrito ? { connect: { idCarrito: parseInt(fkIdCarrito) } } : { disconnect: true };
+  const { sopCondiciones, removedProductos = [], removedServicios = [], itemsActualizados = [] } = data;
 
-  const actualizado = await prisma.soporte_pago.update({
-    where: { idSoporte: parseInt(id) },
-    data: updateData
-  });
+  await prisma.$transaction(async (tx) => {
+    const soporte = await tx.soporte_pago.findUnique({
+      where: { idSoporte: parseInt(id) },
+      include: {
+        carrito: {
+          include: {
+            carrito_producto: { include: { producto: true } },
+            carrito_servicio: true,
+          },
+        },
+      },
+    });
+    if (!soporte) throw new Error("Soporte no encontrado");
 
-  return await getSoportePagoById(actualizado.idSoporte);
+    // ── Eliminar productos y restaurar stock ─────────────────────────────────
+    if (removedProductos.length > 0 && soporte.carrito) {
+      for (const cpId of removedProductos) {
+        const cp = soporte.carrito.carrito_producto.find(cp => cp.idCarritoProducto === cpId);
+        if (!cp) continue;
+        await tx.producto.update({
+          where: { idProducto: cp.fkIdProducto },
+          data: { proStock: { increment: cp.cantidad } },
+        });
+        await tx.carrito_producto.delete({ where: { idCarritoProducto: cpId } });
+      }
+    }
+
+    // ── Ajustar cantidades (y stock si cambia) ───────────────────────────────
+    if (itemsActualizados.length > 0 && soporte.carrito) {
+      for (const item of itemsActualizados) {
+        const cp = soporte.carrito.carrito_producto.find(cp => cp.idCarritoProducto === item.idCarritoProducto);
+        if (!cp) continue;
+        const diff = item.cantidad - cp.cantidad; // positivo = necesita más stock
+        if (diff === 0) continue;
+        if (diff > 0) {
+          const prod = await tx.producto.findUnique({ where: { idProducto: cp.fkIdProducto } });
+          if (prod.proStock < diff)
+            throw new Error(`Stock insuficiente para "${prod.proNombre}". Disponible: ${prod.proStock}`);
+        }
+        await tx.producto.update({
+          where: { idProducto: cp.fkIdProducto },
+          data: { proStock: { decrement: diff } },
+        });
+        await tx.carrito_producto.update({
+          where: { idCarritoProducto: item.idCarritoProducto },
+          data: { cantidad: item.cantidad },
+        });
+      }
+    }
+
+    // ── Eliminar servicios ───────────────────────────────────────────────────
+    if (removedServicios.length > 0) {
+      await tx.carrito_servicio.deleteMany({
+        where: { idCarritoServicio: { in: removedServicios } },
+      });
+    }
+
+    // ── Recalcular total desde el carrito actualizado ────────────────────────
+    let nuevoTotal = Number(soporte.sopTotal);
+    if (soporte.carrito) {
+      const carritoFresh = await tx.carrito.findUnique({
+        where: { idCarrito: soporte.fkIdCarrito },
+        include: {
+          carrito_producto: { include: { producto: true } },
+          carrito_servicio: true,
+        },
+      });
+      nuevoTotal = 0;
+      for (const cp of carritoFresh.carrito_producto)
+        nuevoTotal += Number(cp.producto.proPrecio) * cp.cantidad;
+      for (const cs of carritoFresh.carrito_servicio)
+        nuevoTotal += Number(cs.csPrecio);
+    }
+
+    await tx.soporte_pago.update({
+      where: { idSoporte: parseInt(id) },
+      data: {
+        ...(sopCondiciones !== undefined && { sopCondiciones }),
+        sopTotal: nuevoTotal,
+        sopSubtotal: nuevoTotal,
+      },
+    });
+  }, { timeout: 20000 });
+
+  return getSoportePagoById(parseInt(id));
 };
 
 export const anularSoportePago = async (id, motivo, idUsuarioQueAnula = null) => {
