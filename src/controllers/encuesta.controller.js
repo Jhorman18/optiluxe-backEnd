@@ -54,16 +54,16 @@ export const getEncuesta = async (req, res, next) => {
  */
 export const crearEncuesta = async (req, res, next) => {
   try {
-    const { enTipo, fkIdCita, fkIdFactura, respuestas } = req.body;
+    const { enTipo, fkIdCita, fkIdSoporte, respuestas } = req.body;
 
     if (!enTipo || !respuestas || respuestas.length === 0) {
       return res.status(400).json({ message: "Tipo y respuestas son obligatorios." });
     }
 
-    // Verificar que no exista ya una encuesta para la misma cita o factura
+    // Verificar que no exista ya una encuesta para la misma cita o soporte
     const whereExistente = {};
-    if (fkIdCita)    whereExistente.fkIdCita    = parseInt(fkIdCita);
-    if (fkIdFactura) whereExistente.fkIdFactura = parseInt(fkIdFactura);
+    if (fkIdCita)     whereExistente.fkIdCita    = parseInt(fkIdCita);
+    if (fkIdSoporte) whereExistente.fkIdSoporte = parseInt(fkIdSoporte);
     if (Object.keys(whereExistente).length > 0) {
       const yaExiste = await prisma.encuesta.findFirst({ where: whereExistente });
       if (yaExiste) {
@@ -77,7 +77,7 @@ export const crearEncuesta = async (req, res, next) => {
           enFecha: new Date(),
           enTipo,
           fkIdCita: fkIdCita ? parseInt(fkIdCita) : null,
-          fkIdFactura: fkIdFactura ? parseInt(fkIdFactura) : null,
+          fkIdSoporte: fkIdSoporte ? parseInt(fkIdSoporte) : null,
         },
       });
 

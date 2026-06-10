@@ -30,9 +30,9 @@ export const getAllEncuestasService = async (filtros = {}) => {
   if (busqueda) {
     andConditions.push({
       OR: [
-        { factura: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
-        { factura: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
-        { factura: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
+        { soporte_pago: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
+        { soporte_pago: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
+        { soporte_pago: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
         { cita: { usuario: { usuNombre: { contains: busqueda, mode: 'insensitive' } } } },
         { cita: { usuario: { usuApellido: { contains: busqueda, mode: 'insensitive' } } } },
         { cita: { usuario: { usuDocumento: { contains: busqueda, mode: 'insensitive' } } } },
@@ -47,7 +47,7 @@ export const getAllEncuestasService = async (filtros = {}) => {
   const encuestas = await prisma.encuesta.findMany({
     where: andConditions.length > 0 ? { AND: andConditions } : {},
     include: {
-      factura: {
+      soporte_pago: {
         include: {
           usuario: {
             select: { usuNombre: true, usuApellido: true, usuDocumento: true }
@@ -75,9 +75,9 @@ export const getAllEncuestasService = async (filtros = {}) => {
     let cliente = "Consumidor Final";
     let documento = "N/A";
 
-    if (e.factura?.usuario) {
-      cliente = `${e.factura.usuario.usuNombre} ${e.factura.usuario.usuApellido}`;
-      documento = e.factura.usuario.usuDocumento;
+    if (e.soporte_pago?.usuario) {
+      cliente = `${e.soporte_pago.usuario.usuNombre} ${e.soporte_pago.usuario.usuApellido}`;
+      documento = e.soporte_pago.usuario.usuDocumento;
     } else if (e.cita?.usuario) {
       cliente = `${e.cita.usuario.usuNombre} ${e.cita.usuario.usuApellido}`;
       documento = e.cita.usuario.usuDocumento;
@@ -87,7 +87,7 @@ export const getAllEncuestasService = async (filtros = {}) => {
       ...e,
       cliente,
       documento,
-      referencia: e.factura?.facNumero || (e.cita ? `CITA-${e.idEncuesta}` : "N/A")
+      referencia: e.soporte_pago?.sopNumero || (e.cita ? `CITA-${e.idEncuesta}` : "N/A")
     };
   });
 };
@@ -99,7 +99,7 @@ export const getEncuestaByIdService = async (id) => {
   const encuesta = await prisma.encuesta.findUnique({
     where: { idEncuesta: parseInt(id) },
     include: {
-      factura: {
+      soporte_pago: {
         include: {
           usuario: {
             select: { usuNombre: true, usuApellido: true, usuDocumento: true, usuCorreo: true }
@@ -130,7 +130,7 @@ export const getEncuestaByIdService = async (id) => {
     correo: "N/A"
   };
 
-  const userSource = encuesta.factura?.usuario || encuesta.cita?.usuario;
+  const userSource = encuesta.soporte_pago?.usuario || encuesta.cita?.usuario;
   if (userSource) {
     cliente = {
       nombre: `${userSource.usuNombre} ${userSource.usuApellido}`,

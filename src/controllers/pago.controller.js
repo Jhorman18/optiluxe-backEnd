@@ -1,9 +1,9 @@
 import prisma from "../config/prisma.js";
-import { crearFacturaService } from "../services/factura.service.js";
-import { enviarFacturaEmail } from "../services/email.service.js";
+import { createSoportePago } from "../services/soportePago.service.js";
+import { enviarSoportePagoEmail } from "../services/email.service.js";
 
 function generarNumeroFactura() {
-  return "FAC-" + Date.now();
+  return "SOP-" + Date.now();
 }
 
 export async function procesarPago(req, res, next) {
@@ -51,8 +51,8 @@ export async function procesarPago(req, res, next) {
       facConcepto: "Compra online óptica",
       facCondiciones: "Pago online",
       facSubtotal: subtotal,
-      facIva: subtotal * 0.19,
-      facTotal: subtotal * 1.19,
+      facIva: 0,
+      facTotal: subtotal,
       fkIdCarrito: Number(carritoId),
     };
 
@@ -69,12 +69,12 @@ export async function procesarPago(req, res, next) {
       }
 
       // Crear factura
-      const facturaResult = await crearFacturaService(factData, tx);
-      return facturaResult.factura;
+      const soporteResult = await createSoportePago(factData, tx);
+      return soporteResult;
     });
 
     // 5. Traer factura completa con relaciones para el email
-    const facturaCompleta = await prisma.factura.findUnique({
+    const soporteCompleto = await prisma.soporte_pago.findUnique({
       where: { idFactura: resultado.idFactura },
       include: {
         carrito: {
@@ -92,15 +92,15 @@ export async function procesarPago(req, res, next) {
 
     // 6. Enviar correo (fuera de la transacción por rendimiento)
     try {
-      await enviarFacturaEmail(facturaCompleta);
+      await enviarSoportePagoEmail(soporteCompleto);
     } catch (emailError) {
-      console.error("⚠️ Error enviando email de factura:", emailError);
+      console.error("⚠️ Error enviando email de soporte de pago:", emailError);
       // No bloqueamos el éxito del pago si falla el email
     }
 
     res.json({
-      message: "Pago exitoso, stock actualizado y factura enviada",
-      facturaId: resultado.idFactura
+      message: "Pago exitoso, stock actualizado y soporte de pago enviado",
+      soporteId: resultado.idFactura
     });
 
   } catch (error) {

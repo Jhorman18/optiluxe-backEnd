@@ -96,14 +96,14 @@ export async function obtenerProximasCitasService(limit = 4) {
         take: limit,
         include: { 
             usuario: true,
-            factura: true,
-            encuesta: { include: { factura: true } },
+            soporte_pago: true,
+            encuesta: { include: { soporte_pago: true } },
         },
     });
 
     return citas.map((cita) => {
         let metodoPago = "Pendiente";
-        let fac = cita.factura?.[0] || cita.encuesta?.[0]?.factura;
+        let fac = cita.soporte_pago?.[0] || cita.encuesta?.[0]?.soporte_pago;
 
         if (fac) {
             const condiciones = fac.facCondiciones || "";
@@ -149,11 +149,11 @@ export async function getMisCitasService(idUsuario) {
             citEstado: true,
             citObservaciones: true,
             citDuracion: true,
-            factura: {
-                select: { idFactura: true, facNumero: true, facTotal: true, facFecha: true, facCondiciones: true },
+            soporte_pago: {
+                select: { idSoporte: true, sopNumero: true, sopTotal: true, sopFecha: true, sopCondiciones: true },
             },
             encuesta: {
-                include: { factura: true },
+                include: { soporte_pago: true },
             },
         },
     });
@@ -214,8 +214,8 @@ export async function getAllCitasAdminService({ estado, fechaDesde, fechaHasta, 
                 usuario: {
                     select: { idUsuario: true, usuNombre: true, usuApellido: true, usuDocumento: true, usuTelefono: true, usuCorreo: true },
                 },
-                encuesta: { include: { factura: true } },
-                factura: true,
+                encuesta: { include: { soporte_pago: true } },
+                soporte_pago: true,
                 historia_clinica: true,
             },
         }),
@@ -316,20 +316,17 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
             data: { fkIdUsuario: cita.fkIdUsuario, carEstado: "Completado", carFechaCreacion: new Date() },
         });
 
-        const count = await tx.factura.count();
-        const facNumero = `FAC-CIT-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
+        const count = await tx.soporte_pago.count();
+        const sopNumero = `SOP-CIT-${new Date().getFullYear()}-${(count + 1).toString().padStart(5, "0")}`;
         const total = parseFloat(monto);
-        const subtotal = total / 1.19;
-        const iva = total - subtotal;
 
-        const factura = await tx.factura.create({
+        const soporte = await tx.soporte_pago.create({
             data: {
-                facNumero,
-                facConcepto: `Pago de servicio: ${cita.citMotivo}`,
-                facCondiciones: `Método: ${metodoPago}`,
-                facSubtotal: subtotal.toFixed(2),
-                facIva: iva.toFixed(2),
-                facTotal: total,
+                sopNumero,
+                sopConcepto: `Pago de servicio: ${cita.citMotivo}`,
+                sopCondiciones: `Método: ${metodoPago}`,
+                sopSubtotal: total,
+                sopTotal: total,
                 usuario: { connect: { idUsuario: cita.fkIdUsuario } },
                 carrito: { connect: { idCarrito: carrito.idCarrito } },
                 cita:    { connect: { idCita: parseInt(idCita) } },
@@ -343,7 +340,7 @@ export async function registrarPagoCitaService(idCita, { monto, metodoPago }) {
             include: { usuario: { select: { idUsuario: true, usuNombre: true, usuApellido: true, usuCorreo: true } } },
         });
 
-        return { cita: citaActualizada, factura };
+        return { cita: citaActualizada, soporte };
     });
 }
 

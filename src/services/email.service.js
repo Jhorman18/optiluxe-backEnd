@@ -49,18 +49,18 @@ const contactoHTML = `
   </div>
 `;
 
-export const enviarFacturaEmail = async (factura) => {
+export const enviarSoportePagoEmail = async (soporte) => {
   try {
-    console.log("📧 Entrando a enviarFacturaEmail...");
+    console.log("📧 Entrando a enviarSoportePagoEmail...");
 
-    // Fallback de usuario: Priorizar el del carrito (si existe) o el de la factura
-    const usuario = factura.carrito?.usuario || factura.usuario;
+    // Fallback de usuario: Priorizar el del carrito (si existe) o el del soporte
+    const usuario = soporte.carrito?.usuario || soporte.usuario;
     if (!usuario) throw new Error("No se encontró información de usuario para enviar el correo.");
 
     // Generar HTML de items: Si hay carrito usa productos, si no, usa el concepto de la factura
     let productosHTML = "";
-    if (factura.carrito && factura.carrito.carrito_producto?.length > 0) {
-      productosHTML = factura.carrito.carrito_producto
+    if (soporte.carrito && soporte.carrito.carrito_producto?.length > 0) {
+      productosHTML = soporte.carrito.carrito_producto
         .map((item) => {
           const subtotal = Number(item.producto.proPrecio) * item.cantidad;
           return `
@@ -77,10 +77,10 @@ export const enviarFacturaEmail = async (factura) => {
       // Caso de servicio manual o catálogo sin carrito
       productosHTML = `
         <tr>
-          <td style="padding: 10px; border: 1px solid #eee;">${factura.facConcepto}</td>
+          <td style="padding: 10px; border: 1px solid #eee;">${soporte.sopConcepto}</td>
           <td style="padding: 10px; border: 1px solid #eee; text-align: center;">1</td>
-          <td style="padding: 10px; border: 1px solid #eee;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
-          <td style="padding: 10px; border: 1px solid #eee;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
+          <td style="padding: 10px; border: 1px solid #eee;">$${Number(soporte.sopSubtotal).toLocaleString("es-CO")}</td>
+          <td style="padding: 10px; border: 1px solid #eee;">$${Number(soporte.sopSubtotal).toLocaleString("es-CO")}</td>
         </tr>
       `;
     }
@@ -89,8 +89,8 @@ export const enviarFacturaEmail = async (factura) => {
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
         <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-bottom: 3px solid #3b82f6;">
           <img src="cid:logoOptiLuxe" alt="OptiLuxe" style="max-width: 150px;">
-          <h2 style="margin: 20px 0 0 0; color: #1e293b;">Comprobante de Venta</h2>
-          <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">Factura No. ${factura.facNumero}</p>
+          <h2 style="margin: 20px 0 0 0; color: #1e293b;">Soporte de Pago</h2>
+          <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">Soporte No. ${soporte.sopNumero}</p>
         </div>
 
         <div style="padding: 30px;">
@@ -120,15 +120,11 @@ export const enviarFacturaEmail = async (factura) => {
             <table style="width: 100%;">
               <tr>
                 <td style="padding: 5px 0; color: #64748b;">Subtotal:</td>
-                <td style="padding: 5px 0; text-align: right; font-weight: bold;">$${Number(factura.facSubtotal).toLocaleString("es-CO")}</td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 0; color: #64748b;">IVA (19%):</td>
-                <td style="padding: 5px 0; text-align: right; font-weight: bold;">$${Number(factura.facIva).toLocaleString("es-CO")}</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: bold;">$${Number(soporte.sopSubtotal).toLocaleString("es-CO")}</td>
               </tr>
               <tr style="border-top: 2px solid #3b82f6;">
                 <td style="padding: 15px 0 5px 0; font-size: 18px; color: #1e293b; font-weight: 800;">TOTAL:</td>
-                <td style="padding: 15px 0 5px 0; text-align: right; font-size: 18px; color: #3b82f6; font-weight: 800;">$${Number(factura.facTotal).toLocaleString("es-CO")}</td>
+                <td style="padding: 15px 0 5px 0; text-align: right; font-size: 18px; color: #3b82f6; font-weight: 800;">$${Number(soporte.sopTotal).toLocaleString("es-CO")}</td>
               </tr>
             </table>
           </div>
@@ -145,7 +141,7 @@ export const enviarFacturaEmail = async (factura) => {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: usuario.usuCorreo,
-      subject: `Comprobante de Venta ${factura.facNumero} - OptiLuxe`,
+      subject: `Soporte de Pago ${soporte.sopNumero} - OptiLuxe`,
       html,
       attachments: [logoAttachment],
     });
@@ -177,10 +173,10 @@ export const enviarConfirmacionCitaEmail = async (cita, usuario, factura = null)
       ? `
         <div style="margin-top: 20px; padding: 15px; background-color: #E8F5E9; border-left: 4px solid #4CAF50; border-radius: 4px;">
           <h3 style="margin: 0 0 10px 0; color: #2E7D32;">Pago registrado</h3>
-          <p><strong>Factura:</strong> #${factura.facNumero}</p>
-          <p><strong>Concepto:</strong> ${factura.facConcepto}</p>
-          <p><strong>Método:</strong> ${factura.facCondiciones}</p>
-          <p style="font-size: 18px;"><strong>Total:</strong> $${Number(factura.facTotal).toLocaleString("es-CO")}</p>
+          <p><strong>Soporte de pago:</strong> #${factura.sopNumero}</p>
+          <p><strong>Concepto:</strong> ${factura.sopConcepto}</p>
+          <p><strong>Método:</strong> ${factura.sopCondiciones}</p>
+          <p style="font-size: 18px;"><strong>Total:</strong> $${Number(factura.sopTotal).toLocaleString("es-CO")}</p>
         </div>
       `
       : "";

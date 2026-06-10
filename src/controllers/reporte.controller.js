@@ -7,18 +7,18 @@ export const getReporteVentas = async (req, res, next) => {
         
         const where = {};
         if (fechaInicio || fechaFin) {
-            where.facFecha = {};
+            where.sopFecha = {};
             if (fechaInicio) {
                 // Forzamos interpretación local para que coincida con el calendario del usuario
-                where.facFecha.gte = new Date(fechaInicio + "T00:00:00");
+                where.sopFecha.gte = new Date(fechaInicio + "T00:00:00");
             }
             if (fechaFin) {
                 // Forzamos fin de día local
-                where.facFecha.lte = new Date(fechaFin + "T23:59:59");
+                where.sopFecha.lte = new Date(fechaFin + "T23:59:59");
             }
         }
 
-        const facturas = await prisma.factura.findMany({
+        const soportes = await prisma.soporte_pago.findMany({
             where,
             include: {
                 usuario: {
@@ -29,18 +29,18 @@ export const getReporteVentas = async (req, res, next) => {
                     }
                 }
             },
-            orderBy: { facFecha: "desc" }
+            orderBy: { sopFecha: "desc" }
         });
 
         // Separar efectivas de anuladas
-        const efectivas = facturas.filter(f => f.facEstado === "PAGADA");
-        const anuladas = facturas.filter(f => f.facEstado === "ANULADA");
+        const efectivas = soportes.filter(f => f.sopEstado === "PAGADA");
+        const anuladas = soportes.filter(f => f.sopEstado === "ANULADA");
 
         const resumen = {
             totalEfectivas: efectivas.length,
             totalAnuladas: anuladas.length,
-            montoTotalEfectivas: efectivas.reduce((acc, f) => acc + Number(f.facTotal), 0),
-            montoTotalAnuladas: anuladas.reduce((acc, f) => acc + Number(f.facTotal), 0),
+            montoTotalEfectivas: efectivas.reduce((acc, f) => acc + Number(f.sopTotal), 0),
+            montoTotalAnuladas: anuladas.reduce((acc, f) => acc + Number(f.sopTotal), 0),
         };
 
         res.json({ resumen, efectivas, anuladas });

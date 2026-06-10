@@ -2,17 +2,17 @@
  * Template HTML para el email de confirmación de compra.
  * @param {object} params
  * @param {string} params.nombreUsuario
- * @param {string} params.facNumero
+ * @param {string} params.sopNumero
  * @param {Array}  params.items  - [{ nombre, cantidad, subtotal }]
  * @param {number} params.total
  * @returns {string} HTML listo para enviar
  */
-export function confirmacionCompraHtml({ nombreUsuario, facNumero, items, total }) {
-    const itemsHtml = items
-        .map((item) => `<li>${item.nombre} (x${item.cantidad}) — $${item.subtotal.toLocaleString("es-CO")}</li>`)
-        .join("");
+export function confirmacionCompraHtml({ nombreUsuario, sopNumero, items, total }) {
+  const itemsHtml = items
+    .map((item) => `<li>${item.nombre} (x${item.cantidad}) — $${item.subtotal.toLocaleString("es-CO")}</li>`)
+    .join("");
 
-    return `
+  return `
 <div style="font-family: Arial, sans-serif; background-color: #f8f9fb; padding: 30px;">
   <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
 
@@ -30,7 +30,7 @@ export function confirmacionCompraHtml({ nombreUsuario, facNumero, items, total 
       <!-- Resumen -->
       <div style="margin-top: 25px; padding: 20px; background-color: #F4F8FD; border-left: 4px solid #D5E0F4;">
         <h3>Resumen de la orden</h3>
-        <p><strong>Pedido:</strong> #${facNumero}</p>
+        <p><strong>Pedido:</strong> #${sopNumero}</p>
         <p><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-CO")}</p>
         <ul>${itemsHtml}</ul>
         <p style="font-size: 18px;"><strong>Total:</strong> $${total.toLocaleString("es-CO")}</p>
