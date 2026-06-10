@@ -94,20 +94,17 @@ export const registrarCita = async (req, res) => {
         });
 
         const countSoportes = await tx.soporte_pago.count();
-        const facNumero = `SOP-CIT-${new Date().getFullYear()}-${(countSoportes + 1).toString().padStart(5, '0')}`;
+        const sopNumero = `SOP-CIT-${new Date().getFullYear()}-${(countSoportes + 1).toString().padStart(5, '0')}`;
 
         const total = parseFloat(pago.totalAPagar);
 
-
-
         nuevoSoporte = await tx.soporte_pago.create({
           data: {
-            facNumero,
-            facConcepto: `Pago de servicio: ${citMotivo}`,
-            facCondiciones: `Método: ${pago.metodo}`,
-            facSubtotal: total,
-            facIva: 0,
-            facTotal: total,
+            sopNumero,
+            sopConcepto: `Pago de servicio: ${citMotivo}`,
+            sopCondiciones: `Método: ${pago.metodo}`,
+            sopSubtotal: total,
+            sopTotal: total,
             usuario: { connect: { idUsuario: fkIdUsuario } },
             carrito: { connect: { idCarrito: nuevoCarrito.idCarrito } },
             cita:    { connect: { idCita: nuevaCita.idCita } },
